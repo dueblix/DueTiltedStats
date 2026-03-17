@@ -101,7 +101,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     width: 100%;
     max-width: 0;
     overflow: hidden;
-    text-overflow: ellipsis;
+    text-overflow: clip;
     font-size: 13px;
     font-weight: bold;
     color: #ffffff;
@@ -129,7 +129,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
       <tr>
         <th class="name">Player</th>
         <th>P</th>
-        <th>E</th>
+        <th>S</th>
         <th>R</th>
       </tr>
     </thead>
