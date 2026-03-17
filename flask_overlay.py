@@ -91,7 +91,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   }
 
   #leaderboard tbody td.rank {
-    color: #666666;
+    color: #aaaaaa;
     font-size: 11px;
     width: 24px;
   }
@@ -130,7 +130,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
       <tr>
         <th></th>
         <th>Player</th>
-        <th class="num">EXP</th>
+        <th class="num">PTS</th>
         <th class="num">Lvls</th>
       </tr>
     </thead>
@@ -184,7 +184,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
         timeStr = `${m}:${s}  `;
       }
 
-      const expStr = ll.level_exp !== null ? `  ${ll.level_exp} exp` : '';
+      const expStr = ll.level_exp !== null ? `  ${ll.level_exp} pts` : '';
       document.getElementById('level-stats').textContent =
         `${timeStr}${ll.survivors}/${ll.total_players} saved (${pct}%)${expStr}`;
 
