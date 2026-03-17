@@ -1,0 +1,27 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Runtime database
+*.db
+*.db-shm
+*.db-wal
+
+# Google OAuth tokens (sensitive)
+token.json
+credentials.json
+
+# PyCharm
+.idea/
+
+# Game data snapshots (generated at runtime)
+Data_file.csv
+LastTiltedLevel.csv
+Data/
+
+# Distribution build output
+dist/
+build/
+*.spec
