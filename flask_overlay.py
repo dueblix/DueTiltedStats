@@ -75,7 +75,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   }
 
   #leaderboard thead th.name {
-    text-align: left;
+    text-align: center;
     width: 100%;
   }
 
