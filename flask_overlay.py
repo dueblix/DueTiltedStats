@@ -70,7 +70,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     text-transform: uppercase;
     letter-spacing: 0.1em;
     padding: 4px 6px;
-    text-align: right;
+    text-align: center;
     white-space: nowrap;
   }
 
@@ -91,7 +91,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     padding: 3px 6px;
     vertical-align: middle;
     white-space: nowrap;
-    text-align: right;
+    text-align: center;
     font-size: 12px;
     color: #cccccc;
   }
