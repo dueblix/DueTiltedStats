@@ -34,23 +34,27 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     font-family: 'Courier New', monospace;
     font-size: 14px;
     color: #ffffff;
-    padding: 12px;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    position: relative;
   }
 
-  #level-info {
-    background: rgba(0, 0, 0, 0.70);
-    border-left: 3px solid #ffffff;
-    padding: 6px 10px;
-    margin-bottom: 8px;
-    font-size: 15px;
-    letter-spacing: 0.04em;
+  /* ---- Right panel: leaderboard ---- */
+  #right-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 260px;
   }
 
-  #level-info .label {
+  #status {
+    background: rgba(0, 0, 0, 0.60);
     color: #aaaaaa;
     font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
+    padding: 6px 10px;
+    text-align: center;
+    letter-spacing: 0.06em;
   }
 
   #leaderboard {
@@ -108,35 +112,81 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     padding-right: 10px;
   }
 
-  #status {
-    background: rgba(0, 0, 0, 0.60);
+  /* ---- Bottom bar: level recap ---- */
+  #bottom-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: none;
+  }
+
+  #level-info {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 6px 12px;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+  }
+
+  #level-info .cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #level-info .cell .label {
     color: #aaaaaa;
-    font-size: 11px;
-    padding: 6px 10px;
-    text-align: center;
-    letter-spacing: 0.06em;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  #level-info .cell .value {
+    color: #ffffff;
+    font-size: 14px;
   }
 </style>
 </head>
 <body>
-  <div id="level-info" style="display:none">
-    <div class="label">Level <span id="level-num"></span></div>
-    <span id="level-stats"></span>
+
+  <div id="right-panel">
+    <div id="status">Waiting for game...</div>
+    <table id="leaderboard" style="display:none">
+      <thead>
+        <tr>
+          <th class="name">Player</th>
+          <th>P</th>
+          <th>S</th>
+          <th>R</th>
+        </tr>
+      </thead>
+      <tbody id="lb-body"></tbody>
+    </table>
   </div>
 
-  <table id="leaderboard" style="display:none">
-    <thead>
-      <tr>
-        <th class="name">Player</th>
-        <th>P</th>
-        <th>S</th>
-        <th>R</th>
-      </tr>
-    </thead>
-    <tbody id="lb-body"></tbody>
-  </table>
-
-  <div id="status">Waiting for game...</div>
+  <div id="bottom-bar">
+    <div id="level-info">
+      <div class="cell">
+        <span class="label">Level</span>
+        <span class="value" id="li-level">—</span>
+      </div>
+      <div class="cell">
+        <span class="label">Time</span>
+        <span class="value" id="li-time">—</span>
+      </div>
+      <div class="cell">
+        <span class="label">Saved</span>
+        <span class="value" id="li-saved">—</span>
+      </div>
+      <div class="cell">
+        <span class="label">Points</span>
+        <span class="value" id="li-pts">—</span>
+      </div>
+    </div>
+  </div>
 
 <script>
   async function refresh() {
@@ -148,46 +198,45 @@ _OVERLAY_HTML = """<!DOCTYPE html>
       return;
     }
 
-    const levelInfo   = document.getElementById('level-info');
     const leaderboard = document.getElementById('leaderboard');
     const statusDiv   = document.getElementById('status');
+    const bottomBar   = document.getElementById('bottom-bar');
 
     if (data.status === 'waiting') {
-      levelInfo.style.display   = 'none';
       leaderboard.style.display = 'none';
+      bottomBar.style.display   = 'none';
       statusDiv.style.display   = 'block';
       statusDiv.textContent     = 'Waiting for game...';
       return;
     }
 
-    if (data.status === 'idle') {
-      statusDiv.textContent   = 'PREVIOUS SESSION';
-      statusDiv.style.display = 'block';
-    } else {
-      statusDiv.style.display = 'none';
-    }
+    statusDiv.textContent   = data.status === 'idle' ? 'PREVIOUS SESSION' : '';
+    statusDiv.style.display = data.status === 'idle' ? 'block' : 'none';
 
-    // --- Level info bar ---
+    // --- Bottom bar ---
     if (data.last_level) {
       const ll = data.last_level;
-      document.getElementById('level-num').textContent = ll.level_number;
+
+      document.getElementById('li-level').textContent = ll.level_number;
+
+      if (ll.elapsed_time !== null) {
+        const m = Math.floor(ll.elapsed_time / 60).toString().padStart(2, '0');
+        const s = (ll.elapsed_time % 60).toFixed(3).padStart(6, '0');
+        document.getElementById('li-time').textContent = `${m}:${s}`;
+      } else {
+        document.getElementById('li-time').textContent = '—';
+      }
 
       const pct = ll.total_players > 0
         ? Math.round(ll.survivors / ll.total_players * 100)
         : 0;
+      document.getElementById('li-saved').textContent =
+        `${ll.survivors}/${ll.total_players} (${pct}%)`;
 
-      let timeStr = '';
-      if (ll.elapsed_time !== null) {
-        const m = Math.floor(ll.elapsed_time / 60).toString().padStart(2, '0');
-        const s = (ll.elapsed_time % 60).toFixed(3).padStart(6, '0');
-        timeStr = `${m}:${s}  `;
-      }
+      document.getElementById('li-pts').textContent =
+        ll.level_exp !== null ? ll.level_exp : '—';
 
-      const ptsStr = ll.level_exp !== null ? `  ${ll.level_exp} pts` : '';
-      document.getElementById('level-stats').textContent =
-        `${timeStr}${ll.survivors}/${ll.total_players} saved (${pct}%)${ptsStr}`;
-
-      levelInfo.style.display = 'block';
+      bottomBar.style.display = 'block';
     }
 
     // --- Leaderboard ---
