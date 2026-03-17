@@ -44,8 +44,10 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   #right-panel {
     position: absolute;
     top: 0;
+    bottom: 0;
     right: 0;
     width: 260px;
+    z-index: 1;
   }
 
   #status {
@@ -69,7 +71,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
 
   #leaderboard thead th {
     color: #aaaaaa;
-    font-size: 10px;
+    font-size: 13px;
     font-weight: normal;
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -92,11 +94,11 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   }
 
   #leaderboard tbody td {
-    padding: 3px 6px;
+    padding: 4px 6px;
     vertical-align: middle;
     white-space: nowrap;
     text-align: center;
-    font-size: 12px;
+    font-size: 15px;
     color: #cccccc;
   }
 
@@ -106,7 +108,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     max-width: 0;
     overflow: hidden;
     text-overflow: clip;
-    font-size: 13px;
+    font-size: 15px;
     font-weight: bold;
     color: #ffffff;
     padding-right: 10px;
