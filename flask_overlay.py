@@ -35,7 +35,6 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     font-size: 14px;
     color: #ffffff;
     padding: 12px;
-    min-width: 320px;
   }
 
   #level-info {
@@ -57,6 +56,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   #leaderboard {
     width: 100%;
     border-collapse: collapse;
+    table-layout: auto;
   }
 
   #leaderboard thead tr {
@@ -69,12 +69,14 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     font-weight: normal;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    padding: 4px 8px;
-    text-align: left;
+    padding: 4px 6px;
+    text-align: right;
+    white-space: nowrap;
   }
 
-  #leaderboard thead th.num {
-    text-align: right;
+  #leaderboard thead th.name {
+    text-align: left;
+    width: 100%;
   }
 
   #leaderboard tbody tr {
@@ -86,27 +88,24 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   }
 
   #leaderboard tbody td {
-    padding: 3px 8px;
+    padding: 3px 6px;
     vertical-align: middle;
-  }
-
-  #leaderboard tbody td.rank {
-    color: #aaaaaa;
-    font-size: 11px;
-    width: 24px;
-  }
-
-  #leaderboard tbody td.name {
-    font-size: 13px;
-    font-weight: bold;
-    letter-spacing: 0.02em;
-  }
-
-  #leaderboard tbody td.num {
+    white-space: nowrap;
     text-align: right;
     font-size: 12px;
     color: #cccccc;
-    width: 48px;
+  }
+
+  #leaderboard tbody td.name {
+    text-align: left;
+    width: 100%;
+    max-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 13px;
+    font-weight: bold;
+    color: #ffffff;
+    padding-right: 10px;
   }
 
   #status {
@@ -128,10 +127,10 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   <table id="leaderboard" style="display:none">
     <thead>
       <tr>
-        <th></th>
-        <th>Player</th>
-        <th class="num">PTS</th>
-        <th class="num">Lvls</th>
+        <th class="name">Player</th>
+        <th>P</th>
+        <th>E</th>
+        <th>R</th>
       </tr>
     </thead>
     <tbody id="lb-body"></tbody>
@@ -149,9 +148,9 @@ _OVERLAY_HTML = """<!DOCTYPE html>
       return;
     }
 
-    const levelInfo  = document.getElementById('level-info');
+    const levelInfo   = document.getElementById('level-info');
     const leaderboard = document.getElementById('leaderboard');
-    const statusDiv  = document.getElementById('status');
+    const statusDiv   = document.getElementById('status');
 
     if (data.status === 'waiting') {
       levelInfo.style.display   = 'none';
@@ -184,9 +183,9 @@ _OVERLAY_HTML = """<!DOCTYPE html>
         timeStr = `${m}:${s}  `;
       }
 
-      const expStr = ll.level_exp !== null ? `  ${ll.level_exp} pts` : '';
+      const ptsStr = ll.level_exp !== null ? `  ${ll.level_exp} pts` : '';
       document.getElementById('level-stats').textContent =
-        `${timeStr}${ll.survivors}/${ll.total_players} saved (${pct}%)${expStr}`;
+        `${timeStr}${ll.survivors}/${ll.total_players} saved (${pct}%)${ptsStr}`;
 
       levelInfo.style.display = 'block';
     }
@@ -195,13 +194,13 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     if (data.run_leaderboard && data.run_leaderboard.length > 0) {
       const tbody = document.getElementById('lb-body');
       tbody.innerHTML = '';
-      data.run_leaderboard.forEach((p, i) => {
+      data.run_leaderboard.forEach((p) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td class="rank">${i + 1}</td>
           <td class="name" style="color:${p.colour}">${escHtml(p.display_name)}</td>
-          <td class="num">${p.exp_earned}</td>
-          <td class="num">${p.levels_played}</td>
+          <td>${p.exp_earned}</td>
+          <td>${p.levels_survived}</td>
+          <td>${p.levels_played}</td>
         `;
         tbody.appendChild(tr);
       });
