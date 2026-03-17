@@ -71,7 +71,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
 
   #leaderboard thead th {
     color: #aaaaaa;
-    font-size: 13px;
+    font-size: 20px;
     font-weight: normal;
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -87,6 +87,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
 
   #leaderboard tbody tr {
     background: rgba(0, 0, 0, 0.60);
+    height: 54px;
   }
 
   #leaderboard tbody tr:nth-child(odd) {
@@ -98,7 +99,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     vertical-align: middle;
     white-space: nowrap;
     text-align: center;
-    font-size: 15px;
+    font-size: 40px;
     color: #cccccc;
   }
 
@@ -108,7 +109,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     max-width: 0;
     overflow: hidden;
     text-overflow: clip;
-    font-size: 15px;
+    font-size: 40px;
     font-weight: bold;
     color: #ffffff;
     padding-right: 10px;
