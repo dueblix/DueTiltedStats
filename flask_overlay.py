@@ -156,7 +156,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
 
   <div id="right-panel">
     <div id="status">Waiting for game...</div>
-    <table id="leaderboard" style="display:none">
+    <table id="leaderboard">
       <thead>
         <tr>
           <th class="name">Player</th>
@@ -191,6 +191,42 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   </div>
 
 <script>
+  let rowCount = null;
+
+  function calcRowCount() {
+    const panel = document.getElementById('right-panel');
+    const thead = document.querySelector('#leaderboard thead tr');
+    const available = panel.clientHeight - thead.offsetHeight;
+    const tbody = document.getElementById('lb-body');
+    const test = document.createElement('tr');
+    test.innerHTML = '<td class="name">x</td><td>0</td><td>0</td><td>0</td>';
+    tbody.appendChild(test);
+    const rowH = test.offsetHeight || 29;
+    tbody.removeChild(test);
+    return Math.max(1, Math.floor(available / rowH));
+  }
+
+  function renderRows(players) {
+    if (!rowCount) rowCount = calcRowCount();
+    const tbody = document.getElementById('lb-body');
+    tbody.innerHTML = '';
+    for (let i = 0; i < rowCount; i++) {
+      const p = players[i];
+      const tr = document.createElement('tr');
+      if (p) {
+        tr.innerHTML = `
+          <td class="name" style="color:${p.colour}">${escHtml(p.display_name)}</td>
+          <td>${p.exp_earned}</td>
+          <td>${p.levels_survived}</td>
+          <td>${p.levels_played}</td>
+        `;
+      } else {
+        tr.innerHTML = '<td class="name"></td><td></td><td></td><td></td>';
+      }
+      tbody.appendChild(tr);
+    }
+  }
+
   async function refresh() {
     let data;
     try {
@@ -200,15 +236,14 @@ _OVERLAY_HTML = """<!DOCTYPE html>
       return;
     }
 
-    const leaderboard = document.getElementById('leaderboard');
-    const statusDiv   = document.getElementById('status');
-    const bottomBar   = document.getElementById('bottom-bar');
+    const statusDiv = document.getElementById('status');
+    const bottomBar = document.getElementById('bottom-bar');
 
     if (data.status === 'waiting') {
-      leaderboard.style.display = 'none';
-      bottomBar.style.display   = 'none';
-      statusDiv.style.display   = 'block';
-      statusDiv.textContent     = 'Waiting for game...';
+      renderRows([]);
+      bottomBar.style.display = 'none';
+      statusDiv.style.display = 'block';
+      statusDiv.textContent   = 'Waiting for game...';
       return;
     }
 
@@ -242,21 +277,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     }
 
     // --- Leaderboard ---
-    if (data.run_leaderboard && data.run_leaderboard.length > 0) {
-      const tbody = document.getElementById('lb-body');
-      tbody.innerHTML = '';
-      data.run_leaderboard.forEach((p) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td class="name" style="color:${p.colour}">${escHtml(p.display_name)}</td>
-          <td>${p.exp_earned}</td>
-          <td>${p.levels_survived}</td>
-          <td>${p.levels_played}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-      leaderboard.style.display = 'table';
-    }
+    renderRows(data.run_leaderboard || []);
   }
 
   function escHtml(str) {
