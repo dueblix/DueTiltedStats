@@ -46,7 +46,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     top: 0;
     bottom: 0;
     right: 0;
-    width: 260px;
+    width: 310px;
     z-index: 1;
   }
 
