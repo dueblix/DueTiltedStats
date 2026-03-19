@@ -10,6 +10,7 @@ Usage:
     watcher.start()
 
     app = create_app(watcher, db_path="tilted.db")
+    # Optionally pass config_path= to override the default config.json location.
     app.run(host="127.0.0.1", port=5000)
 """
 
@@ -50,6 +51,12 @@ DEFAULT_CONFIG = {
 
 
 def get_app_dir() -> str:
+    """Return the directory that contains config.json at runtime.
+
+    When running from source this is the project root (next to flask_overlay.py).
+    When packaged with PyInstaller (sys.frozen=True) it is the directory of the
+    compiled executable so the config survives alongside the .exe.
+    """
     if getattr(sys, "frozen", False):
         return os.path.dirname(sys.executable)
     return os.path.dirname(os.path.abspath(__file__))
@@ -275,7 +282,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
       const resp = await fetch('/api/config');
       cfg = await resp.json();
     } catch (_) {
-      return;  // overlay will render with CSS var defaults from stylesheet
+      return;  // CSS vars stay unset; overlay will be invisible until next load
     }
 
     const body = document.body;
@@ -542,6 +549,7 @@ _CONFIG_HTML = """<!DOCTYPE html>
     if (resp.ok) {
       currentCfg = await resp.json();
       populateForm(currentCfg);
+      msg.style.color = 'green';
       msg.textContent = 'Saved!';
       setTimeout(() => { msg.textContent = ''; }, 3000);
     } else {
@@ -570,7 +578,7 @@ _CONFIG_HTML = """<!DOCTYPE html>
 
 def create_app(watcher, db_path: str, config_path: str | None = None) -> Flask:
     app = Flask(__name__)
-    _cfg_path = config_path  # per-app override (used in tests)
+    _cfg_path = config_path  # overrides CONFIG_PATH; pass a tmp path in tests
 
     @app.route("/overlay")
     def overlay():
