@@ -553,28 +553,42 @@ _CONFIG_HTML = """<!DOCTYPE html>
     e.preventDefault();
     const msg = document.getElementById('msg');
     msg.textContent = '';
-    const resp = await fetch('/api/config', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(collectPayload()),
-    });
-    if (resp.ok) {
-      currentCfg = await resp.json();
-      populateForm(currentCfg);
-      msg.style.color = 'green';
-      msg.textContent = 'Saved!';
-      setTimeout(() => { msg.textContent = ''; }, 3000);
-    } else {
+    if (!currentCfg) {
       msg.style.color = 'red';
-      msg.textContent = 'Save failed.';
+      msg.textContent = 'Config not loaded. Refresh the page.';
+      return;
+    }
+    try {
+      const resp = await fetch('/api/config', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(collectPayload()),
+      });
+      if (resp.ok) {
+        currentCfg = await resp.json();
+        populateForm(currentCfg);
+        msg.style.color = 'green';
+        msg.textContent = 'Saved!';
+        setTimeout(() => { msg.textContent = ''; }, 3000);
+      } else {
+        msg.style.color = 'red';
+        msg.textContent = 'Save failed.';
+      }
+    } catch (_) {
+      msg.style.color = 'red';
+      msg.textContent = 'Save failed (network error).';
     }
   });
 
   document.getElementById('reset-btn').addEventListener('click', async () => {
-    const resp = await fetch('/api/config/defaults');
-    if (resp.ok) {
-      currentCfg = await resp.json();
-      populateForm(currentCfg);
+    try {
+      const resp = await fetch('/api/config/defaults');
+      if (resp.ok) {
+        currentCfg = await resp.json();
+        populateForm(currentCfg);
+      }
+    } catch (_) {
+      // silently ignore — form stays as-is on network error
     }
   });
 
