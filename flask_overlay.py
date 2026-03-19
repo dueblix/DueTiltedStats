@@ -13,9 +13,79 @@ Usage:
     app.run(host="127.0.0.1", port=5000)
 """
 
-from flask import Flask, jsonify, render_template_string
+import copy
+import json
+import os
+import sys
+
+from flask import Flask, jsonify, render_template_string, request
 
 import db
+
+
+# ---------------------------------------------------------------------------
+# Config helpers
+# ---------------------------------------------------------------------------
+
+DEFAULT_CONFIG = {
+    "layout": {
+        "panel_width": 310,
+    },
+    "typography": {
+        "font_family": "Courier New, monospace",
+        "row_font_size": 40,
+        "header_font_size": 20,
+    },
+    "colours": {
+        "panel_opacity": 0.60,
+        "bottom_bar_opacity": 0.75,
+    },
+    "columns": [
+        {"key": "points",   "label": "P", "visible": True},
+        {"key": "survived", "label": "S", "visible": True},
+        {"key": "races",    "label": "R", "visible": True},
+    ],
+    "advanced": {},
+}
+
+
+def get_app_dir() -> str:
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+CONFIG_PATH = os.path.join(get_app_dir(), "config.json")
+
+
+def _deep_merge(base: dict, override: dict) -> dict:
+    """Return a new dict: override values merged over base (one level deep for dicts)."""
+    result = copy.deepcopy(base)
+    for key, val in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(val, dict):
+            result[key] = {**result[key], **val}
+        else:
+            result[key] = copy.deepcopy(val)
+    return result
+
+
+def get_config(path: str | None = None) -> dict:
+    """Load config from *path*, deep-merging over defaults. Falls back to defaults on any error."""
+    p = path or CONFIG_PATH
+    try:
+        with open(p, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        # Only keep known top-level keys
+        known = {k: v for k, v in data.items() if k in DEFAULT_CONFIG}
+        return _deep_merge(DEFAULT_CONFIG, known)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return copy.deepcopy(DEFAULT_CONFIG)
+
+
+def save_config(config: dict, path: str | None = None) -> None:
+    p = path or CONFIG_PATH
+    with open(p, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
 
 
 # ---------------------------------------------------------------------------
@@ -31,7 +101,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
 
   body {
     background: transparent;
-    font-family: 'Courier New', monospace;
+    font-family: var(--font-family);
     font-size: 14px;
     color: #ffffff;
     width: 100vw;
@@ -46,12 +116,12 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     top: 0;
     bottom: 0;
     right: 0;
-    width: 310px;
+    width: var(--panel-width);
     z-index: 1;
   }
 
   #status {
-    background: rgba(0, 0, 0, 0.60);
+    background: rgba(0, 0, 0, var(--panel-opacity));
     color: #aaaaaa;
     font-size: 11px;
     padding: 6px 10px;
@@ -71,7 +141,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
 
   #leaderboard thead th {
     color: #aaaaaa;
-    font-size: 20px;
+    font-size: var(--header-font-size);
     font-weight: normal;
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -86,7 +156,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   }
 
   #leaderboard tbody tr {
-    background: rgba(0, 0, 0, 0.60);
+    background: rgba(0, 0, 0, var(--panel-opacity));
     height: 54px;
   }
 
@@ -99,7 +169,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     vertical-align: middle;
     white-space: nowrap;
     text-align: center;
-    font-size: 40px;
+    font-size: var(--row-font-size);
     color: #cccccc;
   }
 
@@ -109,7 +179,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     max-width: 0;
     overflow: hidden;
     text-overflow: clip;
-    font-size: 40px;
+    font-size: var(--row-font-size);
     font-weight: bold;
     color: #ffffff;
     padding-right: 10px;
@@ -121,7 +191,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     bottom: 0;
     left: 0;
     right: 0;
-    background: rgba(0, 0, 0, 0.75);
+    background: rgba(0, 0, 0, var(--bottom-bar-opacity));
     display: none;
   }
 
@@ -159,11 +229,8 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     <div id="status">Waiting for game...</div>
     <table id="leaderboard">
       <thead>
-        <tr>
+        <tr id="lb-head">
           <th class="name">Player</th>
-          <th>P</th>
-          <th>S</th>
-          <th>R</th>
         </tr>
       </thead>
       <tbody id="lb-body"></tbody>
@@ -193,14 +260,57 @@ _OVERLAY_HTML = """<!DOCTYPE html>
 
 <script>
   let rowCount = null;
+  let activeColumns = [];  // [{key, label}] for visible columns in order
+
+  // Map column key -> player data field
+  const COL_FIELD = {
+    points:   'exp_earned',
+    survived: 'levels_survived',
+    races:    'levels_played',
+  };
+
+  async function applyConfig() {
+    let cfg;
+    try {
+      const resp = await fetch('/api/config');
+      cfg = await resp.json();
+    } catch (_) {
+      return;
+    }
+
+    const body = document.body;
+    const layout     = cfg.layout     || {};
+    const typography = cfg.typography || {};
+    const colours    = cfg.colours    || {};
+
+    body.style.setProperty('--panel-width',       (layout.panel_width     || 310) + 'px');
+    body.style.setProperty('--font-family',        typography.font_family  || 'Courier New, monospace');
+    body.style.setProperty('--row-font-size',      (typography.row_font_size    || 40) + 'px');
+    body.style.setProperty('--header-font-size',   (typography.header_font_size || 20) + 'px');
+    body.style.setProperty('--panel-opacity',       colours.panel_opacity      ?? 0.60);
+    body.style.setProperty('--bottom-bar-opacity',  colours.bottom_bar_opacity ?? 0.75);
+
+    // Build visible column list and header
+    activeColumns = (cfg.columns || []).filter(c => c.visible);
+    const headRow = document.getElementById('lb-head');
+    headRow.innerHTML = '<th class="name">Player</th>';
+    for (const col of activeColumns) {
+      const th = document.createElement('th');
+      th.textContent = col.label;
+      headRow.appendChild(th);
+    }
+
+    rowCount = null;  // force recalc after layout change
+  }
 
   function calcRowCount() {
-    const panel = document.getElementById('right-panel');
-    const thead = document.querySelector('#leaderboard thead tr');
+    const panel  = document.getElementById('right-panel');
+    const thead  = document.querySelector('#leaderboard thead tr');
     const available = panel.clientHeight - thead.offsetHeight;
-    const tbody = document.getElementById('lb-body');
-    const test = document.createElement('tr');
-    test.innerHTML = '<td class="name">x</td><td>0</td><td>0</td><td>0</td>';
+    const tbody  = document.getElementById('lb-body');
+    const test   = document.createElement('tr');
+    const emptyCells = activeColumns.map(() => '<td>0</td>').join('');
+    test.innerHTML = `<td class="name">x</td>${emptyCells}`;
     tbody.appendChild(test);
     const rowH = test.offsetHeight || 29;
     tbody.removeChild(test);
@@ -215,14 +325,14 @@ _OVERLAY_HTML = """<!DOCTYPE html>
       const p = players[i];
       const tr = document.createElement('tr');
       if (p) {
-        tr.innerHTML = `
-          <td class="name" style="color:${p.colour}">${escHtml(p.display_name)}</td>
-          <td>${p.exp_earned}</td>
-          <td>${p.levels_survived}</td>
-          <td>${p.levels_played}</td>
-        `;
+        const dataCells = activeColumns.map(col => {
+          const field = COL_FIELD[col.key];
+          return `<td>${field !== undefined ? p[field] : ''}</td>`;
+        }).join('');
+        tr.innerHTML = `<td class="name" style="color:${p.colour}">${escHtml(p.display_name)}</td>${dataCells}`;
       } else {
-        tr.innerHTML = '<td class="name"></td><td></td><td></td><td></td>';
+        const emptyCells = activeColumns.map(() => '<td></td>').join('');
+        tr.innerHTML = `<td class="name"></td>${emptyCells}`;
       }
       tbody.appendChild(tr);
     }
@@ -289,8 +399,170 @@ _OVERLAY_HTML = """<!DOCTYPE html>
       .replace(/"/g, '&quot;');
   }
 
-  setInterval(refresh, 3000);
-  refresh();
+  applyConfig().then(() => {
+    refresh();
+    setInterval(refresh, 3000);
+  });
+</script>
+</body>
+</html>"""
+
+
+# ---------------------------------------------------------------------------
+# Config page HTML (embedded)
+# ---------------------------------------------------------------------------
+
+_CONFIG_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Overlay Config</title>
+<style>
+  body { font-family: sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
+  h1   { margin-bottom: 24px; }
+  h2   { margin: 24px 0 8px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+  label { display: block; margin: 8px 0 2px; font-weight: bold; font-size: 0.9em; }
+  input[type=number], input[type=text], select { width: 100%; padding: 6px; box-sizing: border-box; }
+  .col-row { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+  .col-row label { margin: 0; font-weight: normal; }
+  .actions { margin-top: 24px; display: flex; gap: 12px; align-items: center; }
+  button { padding: 8px 20px; cursor: pointer; }
+  #save-btn { background: #2a7; color: #fff; border: none; border-radius: 4px; }
+  #reset-btn { background: none; border: 1px solid #aaa; border-radius: 4px; }
+  #msg { color: green; font-size: 0.9em; }
+  .note { margin-top: 8px; font-size: 0.85em; color: #666; }
+  a { color: #26a; }
+</style>
+</head>
+<body>
+<h1>Overlay Config</h1>
+<p><a href="/overlay">View overlay</a></p>
+
+<form id="cfg-form">
+
+  <h2>Layout</h2>
+  <label for="panel_width">Panel width (px)</label>
+  <input type="number" id="panel_width" name="panel_width" min="100" max="800">
+
+  <h2>Typography</h2>
+  <label for="font_family">Font family</label>
+  <select id="font_family" name="font_family">
+    <option value="Courier New, monospace">Courier New</option>
+    <option value="Consolas, monospace">Consolas</option>
+    <option value="Lucida Console, monospace">Lucida Console</option>
+    <option value="monospace">monospace (system default)</option>
+  </select>
+  <label for="row_font_size">Row font size (px)</label>
+  <input type="number" id="row_font_size" name="row_font_size" min="8" max="120">
+  <label for="header_font_size">Header font size (px)</label>
+  <input type="number" id="header_font_size" name="header_font_size" min="8" max="60">
+
+  <h2>Colours</h2>
+  <label for="panel_opacity">Panel opacity (0–1)</label>
+  <input type="number" id="panel_opacity" name="panel_opacity" min="0" max="1" step="0.05">
+  <label for="bottom_bar_opacity">Bottom bar opacity (0–1)</label>
+  <input type="number" id="bottom_bar_opacity" name="bottom_bar_opacity" min="0" max="1" step="0.05">
+
+  <h2>Columns</h2>
+  <div id="columns-list"></div>
+
+  <h2>Advanced</h2>
+  <p style="color:#888;font-size:0.9em;">Reserved for future options.</p>
+
+  <div class="actions">
+    <button type="submit" id="save-btn">Save</button>
+    <button type="button" id="reset-btn">Reset to defaults</button>
+    <span id="msg"></span>
+  </div>
+  <p class="note">After saving, refresh the OBS browser source to apply changes.</p>
+</form>
+
+<script>
+  let currentCfg = null;
+
+  async function loadConfig() {
+    const resp = await fetch('/api/config');
+    currentCfg = await resp.json();
+    populateForm(currentCfg);
+  }
+
+  function populateForm(cfg) {
+    document.getElementById('panel_width').value       = cfg.layout.panel_width;
+    document.getElementById('row_font_size').value     = cfg.typography.row_font_size;
+    document.getElementById('header_font_size').value  = cfg.typography.header_font_size;
+    document.getElementById('panel_opacity').value     = cfg.colours.panel_opacity;
+    document.getElementById('bottom_bar_opacity').value = cfg.colours.bottom_bar_opacity;
+
+    // Font family: select matching option or fall back to first
+    const sel = document.getElementById('font_family');
+    const match = [...sel.options].find(o => o.value === cfg.typography.font_family);
+    sel.value = match ? cfg.typography.font_family : sel.options[0].value;
+
+    // Columns
+    const list = document.getElementById('columns-list');
+    list.innerHTML = '';
+    for (const col of cfg.columns) {
+      const row = document.createElement('div');
+      row.className = 'col-row';
+      row.innerHTML = `
+        <input type="checkbox" id="col_${col.key}" data-key="${col.key}" ${col.visible ? 'checked' : ''}>
+        <label for="col_${col.key}">${col.label} (${col.key})</label>
+      `;
+      list.appendChild(row);
+    }
+  }
+
+  function collectPayload() {
+    const columns = currentCfg.columns.map(col => ({
+      ...col,
+      visible: document.getElementById('col_' + col.key)?.checked ?? col.visible,
+    }));
+    return {
+      layout: {
+        panel_width: parseInt(document.getElementById('panel_width').value, 10),
+      },
+      typography: {
+        font_family:       document.getElementById('font_family').value,
+        row_font_size:     parseInt(document.getElementById('row_font_size').value, 10),
+        header_font_size:  parseInt(document.getElementById('header_font_size').value, 10),
+      },
+      colours: {
+        panel_opacity:      parseFloat(document.getElementById('panel_opacity').value),
+        bottom_bar_opacity: parseFloat(document.getElementById('bottom_bar_opacity').value),
+      },
+      columns,
+    };
+  }
+
+  document.getElementById('cfg-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const msg = document.getElementById('msg');
+    msg.textContent = '';
+    const resp = await fetch('/api/config', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(collectPayload()),
+    });
+    if (resp.ok) {
+      currentCfg = await resp.json();
+      populateForm(currentCfg);
+      msg.textContent = 'Saved!';
+      setTimeout(() => { msg.textContent = ''; }, 3000);
+    } else {
+      msg.style.color = 'red';
+      msg.textContent = 'Save failed.';
+    }
+  });
+
+  document.getElementById('reset-btn').addEventListener('click', async () => {
+    const resp = await fetch('/api/config/defaults');
+    if (resp.ok) {
+      currentCfg = await resp.json();
+      populateForm(currentCfg);
+    }
+  });
+
+  loadConfig();
 </script>
 </body>
 </html>"""
@@ -300,12 +572,38 @@ _OVERLAY_HTML = """<!DOCTYPE html>
 # Flask app factory
 # ---------------------------------------------------------------------------
 
-def create_app(watcher, db_path: str) -> Flask:
+def create_app(watcher, db_path: str, config_path: str | None = None) -> Flask:
     app = Flask(__name__)
+    _cfg_path = config_path  # per-app override (used in tests)
 
     @app.route("/overlay")
     def overlay():
         return render_template_string(_OVERLAY_HTML)
+
+    @app.route("/config")
+    def config_page():
+        return render_template_string(_CONFIG_HTML)
+
+    @app.route("/api/config", methods=["GET"])
+    def api_config_get():
+        return jsonify(get_config(path=_cfg_path))
+
+    @app.route("/api/config", methods=["POST"])
+    def api_config_post():
+        payload = request.get_json(silent=True)
+        if payload is None:
+            return jsonify({"error": "invalid JSON"}), 400
+        current = get_config(path=_cfg_path)
+        # Only merge known top-level keys
+        known = {k: v for k, v in payload.items() if k in DEFAULT_CONFIG}
+        merged = _deep_merge(current, known)
+        save_config(merged, path=_cfg_path)
+        return jsonify(merged)
+
+    @app.route("/api/config/defaults", methods=["GET"])
+    def api_config_defaults():
+        import copy
+        return jsonify(copy.deepcopy(DEFAULT_CONFIG))
 
     @app.route("/api/state")
     def api_state():

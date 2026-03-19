@@ -25,3 +25,6 @@ Data/
 dist/
 build/
 *.spec
+
+# User config (generated at runtime)
+config.json
