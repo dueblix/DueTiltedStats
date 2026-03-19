@@ -275,23 +275,19 @@ _OVERLAY_HTML = """<!DOCTYPE html>
       const resp = await fetch('/api/config');
       cfg = await resp.json();
     } catch (_) {
-      return;
+      return;  // overlay will render with CSS var defaults from stylesheet
     }
 
     const body = document.body;
-    const layout     = cfg.layout     || {};
-    const typography = cfg.typography || {};
-    const colours    = cfg.colours    || {};
-
-    body.style.setProperty('--panel-width',       (layout.panel_width     || 310) + 'px');
-    body.style.setProperty('--font-family',        typography.font_family  || 'Courier New, monospace');
-    body.style.setProperty('--row-font-size',      (typography.row_font_size    || 40) + 'px');
-    body.style.setProperty('--header-font-size',   (typography.header_font_size || 20) + 'px');
-    body.style.setProperty('--panel-opacity',       colours.panel_opacity      ?? 0.60);
-    body.style.setProperty('--bottom-bar-opacity',  colours.bottom_bar_opacity ?? 0.75);
+    body.style.setProperty('--panel-width',       cfg.layout.panel_width + 'px');
+    body.style.setProperty('--font-family',        cfg.typography.font_family);
+    body.style.setProperty('--row-font-size',      cfg.typography.row_font_size + 'px');
+    body.style.setProperty('--header-font-size',   cfg.typography.header_font_size + 'px');
+    body.style.setProperty('--panel-opacity',       cfg.colours.panel_opacity);
+    body.style.setProperty('--bottom-bar-opacity',  cfg.colours.bottom_bar_opacity);
 
     // Build visible column list and header
-    activeColumns = (cfg.columns || []).filter(c => c.visible);
+    activeColumns = cfg.columns.filter(c => c.visible);
     const headRow = document.getElementById('lb-head');
     headRow.innerHTML = '<th class="name">Player</th>';
     for (const col of activeColumns) {
@@ -399,7 +395,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
       .replace(/"/g, '&quot;');
   }
 
-  applyConfig().then(() => {
+  applyConfig().finally(() => {
     refresh();
     setInterval(refresh, 3000);
   });
@@ -602,7 +598,6 @@ def create_app(watcher, db_path: str, config_path: str | None = None) -> Flask:
 
     @app.route("/api/config/defaults", methods=["GET"])
     def api_config_defaults():
-        import copy
         return jsonify(copy.deepcopy(DEFAULT_CONFIG))
 
     @app.route("/api/state")
