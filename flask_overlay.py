@@ -85,7 +85,7 @@ def get_config(path: str | None = None) -> dict:
         # Only keep known top-level keys
         known = {k: v for k, v in data.items() if k in DEFAULT_CONFIG}
         return _deep_merge(DEFAULT_CONFIG, known)
-    except (FileNotFoundError, json.JSONDecodeError):
+    except (OSError, json.JSONDecodeError):
         return copy.deepcopy(DEFAULT_CONFIG)
 
 
@@ -280,9 +280,10 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     let cfg;
     try {
       const resp = await fetch('/api/config');
+      if (!resp.ok) return;  // CSS vars stay unset; overlay invisible until next load
       cfg = await resp.json();
     } catch (_) {
-      return;  // CSS vars stay unset; overlay will be invisible until next load
+      return;  // network error; same outcome
     }
 
     const body = document.body;
@@ -484,9 +485,15 @@ _CONFIG_HTML = """<!DOCTYPE html>
   let currentCfg = null;
 
   async function loadConfig() {
-    const resp = await fetch('/api/config');
-    currentCfg = await resp.json();
-    populateForm(currentCfg);
+    try {
+      const resp = await fetch('/api/config');
+      if (!resp.ok) throw new Error(resp.status);
+      currentCfg = await resp.json();
+      populateForm(currentCfg);
+    } catch (_) {
+      document.getElementById('msg').style.color = 'red';
+      document.getElementById('msg').textContent = 'Failed to load config. Refresh to retry.';
+    }
   }
 
   function populateForm(cfg) {
@@ -515,6 +522,11 @@ _CONFIG_HTML = """<!DOCTYPE html>
     }
   }
 
+  function numVal(id, fallback) {
+    const v = parseFloat(document.getElementById(id).value);
+    return isNaN(v) ? fallback : v;
+  }
+
   function collectPayload() {
     const columns = currentCfg.columns.map(col => ({
       ...col,
@@ -522,16 +534,16 @@ _CONFIG_HTML = """<!DOCTYPE html>
     }));
     return {
       layout: {
-        panel_width: parseInt(document.getElementById('panel_width').value, 10),
+        panel_width: numVal('panel_width', currentCfg.layout.panel_width),
       },
       typography: {
         font_family:       document.getElementById('font_family').value,
-        row_font_size:     parseInt(document.getElementById('row_font_size').value, 10),
-        header_font_size:  parseInt(document.getElementById('header_font_size').value, 10),
+        row_font_size:     numVal('row_font_size',    currentCfg.typography.row_font_size),
+        header_font_size:  numVal('header_font_size', currentCfg.typography.header_font_size),
       },
       colours: {
-        panel_opacity:      parseFloat(document.getElementById('panel_opacity').value),
-        bottom_bar_opacity: parseFloat(document.getElementById('bottom_bar_opacity').value),
+        panel_opacity:      numVal('panel_opacity',      currentCfg.colours.panel_opacity),
+        bottom_bar_opacity: numVal('bottom_bar_opacity', currentCfg.colours.bottom_bar_opacity),
       },
       columns,
     };
@@ -601,7 +613,10 @@ def create_app(watcher, db_path: str, config_path: str | None = None) -> Flask:
         # Only merge known top-level keys
         known = {k: v for k, v in payload.items() if k in DEFAULT_CONFIG}
         merged = _deep_merge(current, known)
-        save_config(merged, path=_cfg_path)
+        try:
+            save_config(merged, path=_cfg_path)
+        except OSError as exc:
+            return jsonify({"error": f"could not save config: {exc}"}), 500
         return jsonify(merged)
 
     @app.route("/api/config/defaults", methods=["GET"])

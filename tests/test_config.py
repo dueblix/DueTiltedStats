@@ -4,7 +4,6 @@ test_config.py — tests for config helpers and config-related Flask routes.
 
 import json
 import sys
-import types
 
 import pytest
 
@@ -76,6 +75,17 @@ def test_get_config_corrupt_json_returns_defaults(tmp_path):
     p.write_text("not valid json {{{{")
     cfg = get_config(path=str(p))
     assert cfg == DEFAULT_CONFIG
+
+
+def test_get_config_permission_error_returns_defaults(tmp_path):
+    p = tmp_path / "config.json"
+    p.write_text("{}")
+    p.chmod(0o000)
+    try:
+        cfg = get_config(path=str(p))
+        assert cfg == DEFAULT_CONFIG
+    finally:
+        p.chmod(0o644)  # restore so tmp_path cleanup works
 
 
 # ---------------------------------------------------------------------------
@@ -178,6 +188,18 @@ def test_api_config_post_unknown_keys_ignored(client):
     assert resp.status_code == 200
     data = resp.get_json()
     assert "unknown_section" not in data
+
+
+def test_api_config_post_returns_500_on_save_failure(client, monkeypatch):
+    import flask_overlay
+    def boom(config, path=None):
+        raise OSError("disk full")
+    monkeypatch.setattr(flask_overlay, "save_config", boom)
+    resp = client.post("/api/config",
+                       data=json.dumps({"layout": {"panel_width": 400}}),
+                       content_type="application/json")
+    assert resp.status_code == 500
+    assert "error" in resp.get_json()
 
 
 def test_config_page_returns_200(client):
