@@ -43,6 +43,7 @@ def main() -> None:
     app = create_app(watcher, db_path=DB_PATH)
 
     print(f"[app] Overlay at http://{FLASK_HOST}:{FLASK_PORT}/overlay")
+    print(f"[app] Config  at http://{FLASK_HOST}:{FLASK_PORT}/config")
     print("[app] Press Ctrl+C to stop.")
 
     try:

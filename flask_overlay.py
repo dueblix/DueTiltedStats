@@ -706,5 +706,3 @@ def _rgba_to_css(colour: dict | None) -> str:
     b = round(colour.get("blue",  1.0) * 255)
     a = colour.get("alpha", 1.0)
     return f"rgba({r},{g},{b},{a})"
-
-
