@@ -549,11 +549,25 @@ _CONFIG_HTML = """<!DOCTYPE html>
 <style>
   body { font-family: sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
   h1   { margin-bottom: 24px; }
-  h2   { margin: 24px 0 8px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
   label { display: block; margin: 8px 0 2px; font-weight: bold; font-size: 0.9em; }
   input[type=number], input[type=text], select { width: 100%; padding: 6px; box-sizing: border-box; }
-  .col-row { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
-  .col-row label { margin: 0; font-weight: normal; }
+  input[type=color] { width: 48px; height: 32px; padding: 2px; border: 1px solid #ccc; cursor: pointer; vertical-align: middle; }
+  input[type=checkbox] { cursor: pointer; }
+  details { border: 1px solid #ddd; border-radius: 4px; margin: 12px 0; }
+  details details { margin: 10px 0 4px; }
+  summary { padding: 10px 12px; cursor: pointer; font-weight: bold; font-size: 1em; list-style: none; display: flex; align-items: center; gap: 10px; user-select: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::marker { display: none; }
+  .details-body { padding: 4px 12px 12px; }
+  .field-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 8px 0; }
+  .inline-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+  .inline-row label { margin: 0; }
+  .col-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; padding: 4px 0; border-bottom: 1px solid #f0f0f0; }
+  .col-row:last-child { border-bottom: none; }
+  .col-key { font-size: 0.8em; color: #999; }
+  .col-label-input { width: 60px; padding: 4px 6px; font-size: 0.9em; }
+  .move-btn { padding: 2px 7px; font-size: 0.85em; cursor: pointer; border: 1px solid #ccc; border-radius: 3px; background: #f8f8f8; }
+  .move-btn:hover { background: #e8e8e8; }
   .actions { margin-top: 24px; display: flex; gap: 12px; align-items: center; }
   button { padding: 8px 20px; cursor: pointer; }
   #save-btn { background: #2a7; color: #fff; border: none; border-radius: 4px; }
@@ -569,29 +583,122 @@ _CONFIG_HTML = """<!DOCTYPE html>
 
 <form id="cfg-form">
 
-  <h2>Layout</h2>
-  <label for="panel_width">Panel width (px)</label>
-  <input type="number" id="panel_width" name="panel_width" min="100" max="800">
+  <!-- Global -->
+  <details id="sec-global">
+    <summary>Global</summary>
+    <div class="details-body">
+      <label for="font_family">Font family</label>
+      <select id="font_family">
+        <option value="Courier New, monospace">Courier New</option>
+        <option value="Consolas, monospace">Consolas</option>
+        <option value="Lucida Console, monospace">Lucida Console</option>
+        <option value="monospace">monospace (system default)</option>
+      </select>
+    </div>
+  </details>
 
-  <h2>Typography</h2>
-  <label for="font_family">Font family</label>
-  <select id="font_family" name="font_family">
-    <option value="Courier New, monospace">Courier New</option>
-    <option value="Consolas, monospace">Consolas</option>
-    <option value="Lucida Console, monospace">Lucida Console</option>
-    <option value="monospace">monospace (system default)</option>
-  </select>
-  <label for="row_font_size">Font size (px)</label>
-  <input type="number" id="row_font_size" name="row_font_size" min="8" max="120">
+  <!-- Leaderboard -->
+  <details id="sec-leaderboard">
+    <summary>
+      <input type="checkbox" id="lb_enabled"> Leaderboard
+    </summary>
+    <div class="details-body">
+      <div class="field-pair">
+        <div>
+          <label for="lb_panel_width">Panel width (px)</label>
+          <input type="number" id="lb_panel_width" min="100" max="800">
+        </div>
+        <div>
+          <label for="lb_opacity">Opacity (0–1)</label>
+          <input type="number" id="lb_opacity" min="0" max="1" step="0.05">
+        </div>
+      </div>
+      <div class="field-pair">
+        <div>
+          <label for="lb_font_size">Font size (px)</label>
+          <input type="number" id="lb_font_size" min="8" max="120">
+        </div>
+        <div>
+          <label for="lb_font_colour">Font colour</label>
+          <input type="color" id="lb_font_colour">
+        </div>
+      </div>
 
-  <h2>Colours / Opacity</h2>
-  <label for="panel_opacity">Leaderboard opacity (0–1)</label>
-  <input type="number" id="panel_opacity" name="panel_opacity" min="0" max="1" step="0.05">
-  <label for="bottom_bar_opacity">Bottom bar opacity (0–1)</label>
-  <input type="number" id="bottom_bar_opacity" name="bottom_bar_opacity" min="0" max="1" step="0.05">
+      <!-- Header font override -->
+      <details id="sec-header-override">
+        <summary>
+          <input type="checkbox" id="hdr_override_enabled"> Header font override
+        </summary>
+        <div class="details-body">
+          <div class="field-pair">
+            <div>
+              <label for="hdr_font_size">Header font size (px)</label>
+              <input type="number" id="hdr_font_size" min="8" max="120">
+            </div>
+            <div>
+              <label for="hdr_font_colour">Header font colour</label>
+              <input type="color" id="hdr_font_colour">
+            </div>
+          </div>
+        </div>
+      </details>
 
-  <h2>Columns</h2>
-  <div id="columns-list"></div>
+      <label for="row_bg_mode">Row background mode</label>
+      <select id="row_bg_mode">
+        <option value="alternating">Alternating</option>
+        <option value="solid">Solid</option>
+      </select>
+      <div class="inline-row">
+        <label for="row_bg_colour" style="margin:0">Row background colour</label>
+        <input type="color" id="row_bg_colour">
+      </div>
+
+      <!-- Alternating row colour -->
+      <details id="sec-alt-colour">
+        <summary>
+          <input type="checkbox" id="row_bg_alt_enabled"> Alternating row colour
+        </summary>
+        <div class="details-body">
+          <div class="inline-row">
+            <label for="row_bg_alt_colour" style="margin:0">Alt row colour</label>
+            <input type="color" id="row_bg_alt_colour">
+          </div>
+        </div>
+      </details>
+
+      <label for="row_separator">Row separator</label>
+      <select id="row_separator">
+        <option value="none">None</option>
+        <option value="line">Line</option>
+      </select>
+
+      <label style="margin-top:12px">Columns</label>
+      <div id="columns-list"></div>
+    </div>
+  </details>
+
+  <!-- Bottom Bar -->
+  <details id="sec-bottom-bar">
+    <summary>
+      <input type="checkbox" id="bb_enabled"> Bottom Bar
+    </summary>
+    <div class="details-body">
+      <div class="field-pair">
+        <div>
+          <label for="bb_font_size">Font size (px)</label>
+          <input type="number" id="bb_font_size" min="8" max="120">
+        </div>
+        <div>
+          <label for="bb_opacity">Opacity (0–1)</label>
+          <input type="number" id="bb_opacity" min="0" max="1" step="0.05">
+        </div>
+      </div>
+      <div class="inline-row">
+        <label for="bb_font_colour" style="margin:0">Font colour</label>
+        <input type="color" id="bb_font_colour">
+      </div>
+    </div>
+  </details>
 
   <div class="actions">
     <button type="submit" id="save-btn">Save</button>
@@ -617,26 +724,72 @@ _CONFIG_HTML = """<!DOCTYPE html>
   }
 
   function populateForm(cfg) {
-    document.getElementById('panel_width').value       = cfg.leaderboard.panel_width;
-    document.getElementById('row_font_size').value     = cfg.leaderboard.font_size;
-    document.getElementById('panel_opacity').value     = cfg.leaderboard.opacity;
-    document.getElementById('bottom_bar_opacity').value = cfg.bottom_bar.opacity;
-
+    // Global
     const sel = document.getElementById('font_family');
     const match = [...sel.options].find(o => o.value === cfg.global.font_family);
     sel.value = match ? cfg.global.font_family : sel.options[0].value;
 
+    // Leaderboard
+    document.getElementById('lb_enabled').checked          = cfg.leaderboard.enabled;
+    document.getElementById('lb_panel_width').value        = cfg.leaderboard.panel_width;
+    document.getElementById('lb_opacity').value            = cfg.leaderboard.opacity;
+    document.getElementById('lb_font_size').value          = cfg.leaderboard.font_size;
+    document.getElementById('lb_font_colour').value        = cfg.leaderboard.font_colour;
+
+    // Header font override
+    document.getElementById('hdr_override_enabled').checked = cfg.leaderboard.header_font_override.enabled;
+    document.getElementById('hdr_font_size').value           = cfg.leaderboard.header_font_override.font_size;
+    document.getElementById('hdr_font_colour').value         = cfg.leaderboard.header_font_override.font_colour;
+
+    // Row background
+    document.getElementById('row_bg_mode').value           = cfg.leaderboard.row_background;
+    document.getElementById('row_bg_colour').value         = cfg.leaderboard.row_background_colour;
+    document.getElementById('row_bg_alt_enabled').checked  = cfg.leaderboard.row_background_alt.enabled;
+    document.getElementById('row_bg_alt_colour').value     = cfg.leaderboard.row_background_alt.colour;
+
+    // Row separator
+    document.getElementById('row_separator').value         = cfg.leaderboard.row_separator;
+
+    // Columns
+    buildColumnRows(cfg.leaderboard.columns);
+
+    // Bottom bar
+    document.getElementById('bb_enabled').checked   = cfg.bottom_bar.enabled;
+    document.getElementById('bb_opacity').value     = cfg.bottom_bar.opacity;
+    document.getElementById('bb_font_size').value   = cfg.bottom_bar.font_size;
+    document.getElementById('bb_font_colour').value = cfg.bottom_bar.font_colour;
+  }
+
+  function buildColumnRows(columns) {
     const list = document.getElementById('columns-list');
     list.innerHTML = '';
-    for (const col of cfg.leaderboard.columns) {
+    for (const col of columns) {
       const row = document.createElement('div');
       row.className = 'col-row';
+      row.dataset.key = col.key;
       row.innerHTML = `
-        <input type="checkbox" id="col_${col.key}" data-key="${col.key}" ${col.visible ? 'checked' : ''}>
-        <label for="col_${col.key}">${col.label} (${col.key})</label>
+        <button type="button" class="move-btn" onclick="moveColumn('${col.key}', -1)">&#9650;</button>
+        <button type="button" class="move-btn" onclick="moveColumn('${col.key}', +1)">&#9660;</button>
+        <input type="text" class="col-label-input" id="col_label_${col.key}"
+               value="${col.label}" data-saved-label="${col.label}">
+        <input type="checkbox" id="col_vis_${col.key}" ${col.visible ? 'checked' : ''}>
+        <span class="col-key">${col.key}</span>
       `;
+      row.querySelector('.col-label-input').addEventListener('blur', function() {
+        if (this.value.trim() === '') this.value = this.dataset.savedLabel;
+      });
       list.appendChild(row);
     }
+  }
+
+  function moveColumn(key, dir) {
+    const list = document.getElementById('columns-list');
+    const rows = [...list.querySelectorAll('.col-row')];
+    const idx = rows.findIndex(r => r.dataset.key === key);
+    const target = idx + dir;
+    if (target < 0 || target >= rows.length) return;
+    if (dir === -1) list.insertBefore(rows[idx], rows[target]);
+    else            list.insertBefore(rows[target], rows[idx]);
   }
 
   function numVal(id, fallback) {
@@ -645,22 +798,45 @@ _CONFIG_HTML = """<!DOCTYPE html>
   }
 
   function collectPayload() {
-    const columns = currentCfg.leaderboard.columns.map(col => ({
-      ...col,
-      visible: document.getElementById('col_' + col.key)?.checked ?? col.visible,
-    }));
+    const columns = [];
+    for (const row of document.querySelectorAll('#columns-list .col-row')) {
+      const key = row.dataset.key;
+      const orig = (currentCfg.leaderboard.columns.find(c => c.key === key) || {}).label;
+      columns.push({
+        key,
+        label:   document.getElementById('col_label_' + key).value.trim() || orig,
+        visible: document.getElementById('col_vis_' + key).checked,
+      });
+    }
     return {
       global: {
         font_family: document.getElementById('font_family').value,
       },
       leaderboard: {
-        panel_width: numVal('panel_width', currentCfg.leaderboard.panel_width),
-        font_size:   numVal('row_font_size', currentCfg.leaderboard.font_size),
-        opacity:     numVal('panel_opacity', currentCfg.leaderboard.opacity),
+        enabled:     document.getElementById('lb_enabled').checked,
+        panel_width: numVal('lb_panel_width', currentCfg.leaderboard.panel_width),
+        opacity:     numVal('lb_opacity', currentCfg.leaderboard.opacity),
+        font_size:   numVal('lb_font_size', currentCfg.leaderboard.font_size),
+        font_colour: document.getElementById('lb_font_colour').value,
+        header_font_override: {
+          enabled:    document.getElementById('hdr_override_enabled').checked,
+          font_size:  numVal('hdr_font_size', currentCfg.leaderboard.header_font_override.font_size),
+          font_colour: document.getElementById('hdr_font_colour').value,
+        },
+        row_background:        document.getElementById('row_bg_mode').value,
+        row_background_colour: document.getElementById('row_bg_colour').value,
+        row_background_alt: {
+          enabled: document.getElementById('row_bg_alt_enabled').checked,
+          colour:  document.getElementById('row_bg_alt_colour').value,
+        },
+        row_separator: document.getElementById('row_separator').value,
         columns,
       },
       bottom_bar: {
-        opacity: numVal('bottom_bar_opacity', currentCfg.bottom_bar.opacity),
+        enabled:    document.getElementById('bb_enabled').checked,
+        opacity:    numVal('bb_opacity', currentCfg.bottom_bar.opacity),
+        font_size:  numVal('bb_font_size', currentCfg.bottom_bar.font_size),
+        font_colour: document.getElementById('bb_font_colour').value,
       },
     };
   }
@@ -706,6 +882,11 @@ _CONFIG_HTML = """<!DOCTYPE html>
     } catch (_) {
       // silently ignore — form stays as-is on network error
     }
+  });
+
+  // Prevent enable checkboxes inside <summary> from toggling the <details>
+  ['lb_enabled', 'bb_enabled', 'hdr_override_enabled', 'row_bg_alt_enabled'].forEach(id => {
+    document.getElementById(id).addEventListener('click', e => e.stopPropagation());
   });
 
   loadConfig();
