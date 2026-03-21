@@ -314,13 +314,22 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   let lastLayoutSig = null;  // detects layout-affecting config changes
 
   function layoutSig(lb) {
-    // Captures fields that affect row height (font_size) or column structure
-    // (visible set and labels). panel_width doesn't affect either so is excluded.
+    // Captures fields that affect row height or column structure, so the header
+    // and rowCount are rebuilt only when something layout-relevant changes.
+    //   font_size        — body row height
+    //   headerFontSize   — thead height (header_font_override may differ from body)
+    //   cols             — visible column set and labels
+    // Excluded: panel_width, colours, opacity — none affect row or header height.
+    const hdr = lb.header_font_override || {};
+    const headerFontSize = hdr.enabled ? hdr.font_size : lb.font_size;
     const cols = lb.columns.filter(c => c.visible).map(c => `${c.key}:${c.label}`).join(',');
-    return `${lb.font_size}|${cols}`;
+    return `${lb.font_size}|${headerFontSize}|${cols}`;
   }
 
-  // Map column key -> player data field
+  // Maps each config column key to the matching field name in the /api/state
+  // player objects. When a new column type is added to DEFAULT_CONFIG, a
+  // corresponding entry must be added here AND the /api/state route must
+  // include that field in each player dict.
   const COL_FIELD = {
     points:   'exp_earned',
     survived: 'levels_survived',
@@ -353,6 +362,8 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     const lb   = cfg.leaderboard;
     const bb   = cfg.bottom_bar;
 
+    // leaderboard.enabled is config-only: hide the panel regardless of game state.
+    // (bottom_bar.enabled is handled in refresh() where game state is also checked.)
     document.getElementById('right-panel').style.display = lb.enabled ? '' : 'none';
 
     // --- Global + leaderboard layout ---
@@ -363,7 +374,8 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     body.style.setProperty('--row-font-colour',  lb.font_colour);
 
     // --- Header font: use override values when enabled, else inherit from row ---
-    const hdr = lb.header_font_override;
+    // Guard with || {} so a missing nested object degrades to body values.
+    const hdr = lb.header_font_override || {};
     body.style.setProperty('--header-font-size',
         (hdr.enabled ? hdr.font_size : lb.font_size) + 'px');
     body.style.setProperty('--header-font-colour',
@@ -372,11 +384,12 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     // --- Row backgrounds ---
     const rowBg = lb.row_background_colour;
     body.style.setProperty('--row-bg', rowBg);
+    const altCfg = lb.row_background_alt || {};
     let altBg;
     if (lb.row_background === 'solid') {
       altBg = rowBg;                          // no alternation
-    } else if (lb.row_background_alt.enabled) {
-      altBg = lb.row_background_alt.colour;   // explicit alt colour
+    } else if (altCfg.enabled) {
+      altBg = altCfg.colour;                  // explicit alt colour
     } else {
       altBg = deriveAltColour(rowBg);         // auto-derived from primary
     }
@@ -466,6 +479,8 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     statusDiv.style.display = data.status === 'idle' ? 'block' : 'none';
 
     // --- Bottom bar ---
+    // bottom_bar.enabled is gated by BOTH config AND game state: only show when
+    // the config allows it AND there is active level data to display.
     // currentConfig is null only if applyConfig hasn't succeeded yet on first tick.
     if (data.last_level && currentConfig?.bottom_bar.enabled) {
       const ll = data.last_level;
