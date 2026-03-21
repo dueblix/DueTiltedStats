@@ -300,6 +300,13 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   let rowCount = null;
   let activeColumns = [];  // [{key, label}] for visible columns in order
   let currentConfig = null;
+  let lastLayoutSig = null;  // detects layout-affecting config changes
+
+  function layoutSig(lb) {
+    // Captures all fields that affect row height or column structure
+    const cols = lb.columns.filter(c => c.visible).map(c => `${c.key}:${c.label}`).join(',');
+    return `${lb.panel_width}|${lb.font_size}|${cols}`;
+  }
 
   // Map column key -> player data field
   const COL_FIELD = {
@@ -364,17 +371,20 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     body.style.setProperty('--bottom-bar-font-size',    bb.font_size + 'px');
     body.style.setProperty('--bottom-bar-font-colour',  bb.font_colour);
 
-    // Rebuild column header
-    activeColumns = lb.columns.filter(c => c.visible);
-    const headRow = document.getElementById('lb-head');
-    headRow.innerHTML = '<th class="name">Player</th>';
-    for (const col of activeColumns) {
-      const th = document.createElement('th');
-      th.textContent = col.label;
-      headRow.appendChild(th);
+    // Rebuild column header and reset row count only when layout actually changed
+    const sig = layoutSig(lb);
+    if (sig !== lastLayoutSig) {
+      lastLayoutSig  = sig;
+      activeColumns  = lb.columns.filter(c => c.visible);
+      const headRow  = document.getElementById('lb-head');
+      headRow.innerHTML = '<th class="name">Player</th>';
+      for (const col of activeColumns) {
+        const th = document.createElement('th');
+        th.textContent = col.label;
+        headRow.appendChild(th);
+      }
+      rowCount = null;
     }
-
-    rowCount = null;  // force recalc after any layout change
   }
 
   function calcRowCount() {
