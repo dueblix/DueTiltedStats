@@ -20,7 +20,7 @@ import os
 import sys
 import tempfile
 
-from flask import Flask, jsonify, render_template_string, request
+from flask import Flask, Response, jsonify, request
 
 import db
 
@@ -974,11 +974,11 @@ def create_app(watcher, db_path: str, config_path: str | None = None) -> Flask:
 
     @app.route("/overlay")
     def overlay():
-        return render_template_string(_OVERLAY_HTML)
+        return Response(_OVERLAY_HTML, mimetype="text/html")
 
     @app.route("/config")
     def config_page():
-        return render_template_string(_CONFIG_HTML)
+        return Response(_CONFIG_HTML, mimetype="text/html")
 
     @app.route("/api/config", methods=["GET"])
     def api_config_get():
