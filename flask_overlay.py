@@ -29,24 +29,39 @@ import db
 # ---------------------------------------------------------------------------
 
 DEFAULT_CONFIG = {
-    "layout": {
-        "panel_width": 310,
-    },
-    "typography": {
+    "global": {
         "font_family": "Courier New, monospace",
-        "row_font_size": 40,
-        "header_font_size": 20,
     },
-    "colours": {
-        "panel_opacity": 0.60,
-        "bottom_bar_opacity": 0.75,
+    "leaderboard": {
+        "enabled": True,
+        "panel_width": 310,
+        "font_size": 40,
+        "font_colour": "#ffffff",
+        "header_font_override": {
+            "enabled": False,
+            "font_size": 40,
+            "font_colour": "#ffffff",
+        },
+        "opacity": 0.60,
+        "row_background": "alternating",
+        "row_background_colour": "#1a1a1a",
+        "row_background_alt": {
+            "enabled": False,
+            "colour": "#2a2a2a",
+        },
+        "row_separator": "none",
+        "columns": [
+            {"key": "points",   "label": "P", "visible": True},
+            {"key": "survived", "label": "S", "visible": True},
+            {"key": "races",    "label": "R", "visible": True},
+        ],
     },
-    "columns": [
-        {"key": "points",   "label": "P", "visible": True},
-        {"key": "survived", "label": "S", "visible": True},
-        {"key": "races",    "label": "R", "visible": True},
-    ],
-    "advanced": {},
+    "bottom_bar": {
+        "enabled": True,
+        "font_size": 20,
+        "font_colour": "#ffffff",
+        "opacity": 0.75,
+    },
 }
 
 
@@ -66,11 +81,11 @@ CONFIG_PATH = os.path.join(get_app_dir(), "config.json")
 
 
 def _deep_merge(base: dict, override: dict) -> dict:
-    """Return a new dict: override values merged over base (one level deep for dicts)."""
+    """Return a new dict: override values recursively merged over base."""
     result = copy.deepcopy(base)
     for key, val in override.items():
         if key in result and isinstance(result[key], dict) and isinstance(val, dict):
-            result[key] = {**result[key], **val}
+            result[key] = _deep_merge(result[key], val)
         else:
             result[key] = copy.deepcopy(val)
     return result
@@ -82,7 +97,7 @@ def get_config(path: str | None = None) -> dict:
     try:
         with open(p, "r", encoding="utf-8") as f:
             data = json.load(f)
-        # Only keep known top-level keys
+        # Only keep known top-level keys; old-schema files fall back to defaults
         known = {k: v for k, v in data.items() if k in DEFAULT_CONFIG}
         return _deep_merge(DEFAULT_CONFIG, known)
     except (OSError, json.JSONDecodeError):
@@ -107,6 +122,20 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
+    --font-family: 'Courier New', monospace;
+    --panel-width: 310px;
+    --panel-opacity: 0.6;
+    --row-font-size: 40px;
+    --row-font-colour: #ffffff;
+    --header-font-size: 40px;
+    --header-font-colour: #ffffff;
+    --row-bg: #1a1a1a;
+    --row-bg-alt: #2a2a2a;
+    --row-separator: none;
+    --bottom-bar-opacity: 0.75;
+    --bottom-bar-font-size: 20px;
+    --bottom-bar-font-colour: #ffffff;
+
     background: transparent;
     font-family: var(--font-family);
     font-size: 14px;
@@ -147,7 +176,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   }
 
   #leaderboard thead th {
-    color: #aaaaaa;
+    color: var(--header-font-colour);
     font-size: var(--header-font-size);
     font-weight: normal;
     text-transform: uppercase;
@@ -163,12 +192,13 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   }
 
   #leaderboard tbody tr {
-    background: rgba(0, 0, 0, var(--panel-opacity));
+    background: var(--row-bg);
+    border-bottom: var(--row-separator);
     height: 54px;
   }
 
   #leaderboard tbody tr:nth-child(odd) {
-    background: rgba(0, 0, 0, 0.70);
+    background: var(--row-bg-alt);
   }
 
   #leaderboard tbody td {
@@ -177,7 +207,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     white-space: nowrap;
     text-align: center;
     font-size: var(--row-font-size);
-    color: #cccccc;
+    color: var(--row-font-colour);
   }
 
   #leaderboard tbody td.name {
@@ -207,7 +237,6 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     align-items: center;
     gap: 24px;
     padding: 6px 12px;
-    font-size: 13px;
     letter-spacing: 0.04em;
   }
 
@@ -225,8 +254,8 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   }
 
   #level-info .cell .value {
-    color: #ffffff;
-    font-size: 14px;
+    color: var(--bottom-bar-font-colour);
+    font-size: var(--bottom-bar-font-size);
   }
 </style>
 </head>
@@ -266,8 +295,11 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   </div>
 
 <script>
+  const POLL_INTERVAL = 2000;
+
   let rowCount = null;
   let activeColumns = [];  // [{key, label}] for visible columns in order
+  let currentConfig = null;
 
   // Map column key -> player data field
   const COL_FIELD = {
@@ -276,26 +308,64 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     races:    'levels_played',
   };
 
+  function deriveAltColour(hex) {
+    if (!hex || hex.length < 7) return '#2a2a2a';
+    const r = Math.min(255, parseInt(hex.slice(1, 3), 16) + 16);
+    const g = Math.min(255, parseInt(hex.slice(3, 5), 16) + 16);
+    const b = Math.min(255, parseInt(hex.slice(5, 7), 16) + 16);
+    return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+  }
+
   async function applyConfig() {
     let cfg;
     try {
       const resp = await fetch('/api/config');
-      if (!resp.ok) return;  // CSS vars stay unset; overlay invisible until next load
+      if (!resp.ok) return;
       cfg = await resp.json();
     } catch (_) {
-      return;  // network error; same outcome
+      return;
     }
 
+    currentConfig = cfg;
     const body = document.body;
-    body.style.setProperty('--panel-width',       cfg.layout.panel_width + 'px');
-    body.style.setProperty('--font-family',        cfg.typography.font_family);
-    body.style.setProperty('--row-font-size',      cfg.typography.row_font_size + 'px');
-    body.style.setProperty('--header-font-size',   cfg.typography.header_font_size + 'px');
-    body.style.setProperty('--panel-opacity',       cfg.colours.panel_opacity);
-    body.style.setProperty('--bottom-bar-opacity',  cfg.colours.bottom_bar_opacity);
+    const lb   = cfg.leaderboard;
+    const bb   = cfg.bottom_bar;
 
-    // Build visible column list and header
-    activeColumns = cfg.columns.filter(c => c.visible);
+    document.getElementById('right-panel').style.display = lb.enabled ? '' : 'none';
+
+    body.style.setProperty('--font-family',     cfg.global.font_family);
+    body.style.setProperty('--panel-width',      lb.panel_width + 'px');
+    body.style.setProperty('--panel-opacity',    lb.opacity);
+    body.style.setProperty('--row-font-size',    lb.font_size + 'px');
+    body.style.setProperty('--row-font-colour',  lb.font_colour);
+
+    const hdr = lb.header_font_override;
+    body.style.setProperty('--header-font-size',
+        (hdr.enabled ? hdr.font_size : lb.font_size) + 'px');
+    body.style.setProperty('--header-font-colour',
+        hdr.enabled ? hdr.font_colour : lb.font_colour);
+
+    const rowBg = lb.row_background_colour;
+    body.style.setProperty('--row-bg', rowBg);
+    let altBg;
+    if (lb.row_background === 'solid') {
+      altBg = rowBg;
+    } else if (lb.row_background_alt.enabled) {
+      altBg = lb.row_background_alt.colour;
+    } else {
+      altBg = deriveAltColour(rowBg);
+    }
+    body.style.setProperty('--row-bg-alt', altBg);
+
+    body.style.setProperty('--row-separator',
+        lb.row_separator === 'line' ? '1px solid rgba(255,255,255,0.1)' : 'none');
+
+    body.style.setProperty('--bottom-bar-opacity',      bb.opacity);
+    body.style.setProperty('--bottom-bar-font-size',    bb.font_size + 'px');
+    body.style.setProperty('--bottom-bar-font-colour',  bb.font_colour);
+
+    // Rebuild column header
+    activeColumns = lb.columns.filter(c => c.visible);
     const headRow = document.getElementById('lb-head');
     headRow.innerHTML = '<th class="name">Player</th>';
     for (const col of activeColumns) {
@@ -304,15 +374,15 @@ _OVERLAY_HTML = """<!DOCTYPE html>
       headRow.appendChild(th);
     }
 
-    rowCount = null;  // force recalc after layout change
+    rowCount = null;  // force recalc after any layout change
   }
 
   function calcRowCount() {
-    const panel  = document.getElementById('right-panel');
-    const thead  = document.querySelector('#leaderboard thead tr');
+    const panel    = document.getElementById('right-panel');
+    const thead    = document.querySelector('#leaderboard thead tr');
     const available = panel.clientHeight - thead.offsetHeight;
-    const tbody  = document.getElementById('lb-body');
-    const test   = document.createElement('tr');
+    const tbody    = document.getElementById('lb-body');
+    const test     = document.createElement('tr');
     const emptyCells = activeColumns.map(() => '<td>0</td>').join('');
     test.innerHTML = `<td class="name">x</td>${emptyCells}`;
     tbody.appendChild(test);
@@ -366,7 +436,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     statusDiv.style.display = data.status === 'idle' ? 'block' : 'none';
 
     // --- Bottom bar ---
-    if (data.last_level) {
+    if (data.last_level && currentConfig?.bottom_bar.enabled) {
       const ll = data.last_level;
 
       document.getElementById('li-level').textContent = ll.level_number;
@@ -389,6 +459,8 @@ _OVERLAY_HTML = """<!DOCTYPE html>
         ll.level_exp !== null ? ll.level_exp : '—';
 
       bottomBar.style.display = 'block';
+    } else {
+      bottomBar.style.display = 'none';
     }
 
     // --- Leaderboard ---
@@ -403,10 +475,13 @@ _OVERLAY_HTML = """<!DOCTYPE html>
       .replace(/"/g, '&quot;');
   }
 
-  applyConfig().finally(() => {
-    refresh();
-    setInterval(refresh, 3000);
-  });
+  async function tick() {
+    await applyConfig();
+    await refresh();
+  }
+
+  tick();
+  setInterval(tick, POLL_INTERVAL);
 </script>
 </body>
 </html>"""
@@ -456,13 +531,11 @@ _CONFIG_HTML = """<!DOCTYPE html>
     <option value="Lucida Console, monospace">Lucida Console</option>
     <option value="monospace">monospace (system default)</option>
   </select>
-  <label for="row_font_size">Row font size (px)</label>
+  <label for="row_font_size">Font size (px)</label>
   <input type="number" id="row_font_size" name="row_font_size" min="8" max="120">
-  <label for="header_font_size">Header font size (px)</label>
-  <input type="number" id="header_font_size" name="header_font_size" min="8" max="60">
 
-  <h2>Colours</h2>
-  <label for="panel_opacity">Panel opacity (0–1)</label>
+  <h2>Colours / Opacity</h2>
+  <label for="panel_opacity">Leaderboard opacity (0–1)</label>
   <input type="number" id="panel_opacity" name="panel_opacity" min="0" max="1" step="0.05">
   <label for="bottom_bar_opacity">Bottom bar opacity (0–1)</label>
   <input type="number" id="bottom_bar_opacity" name="bottom_bar_opacity" min="0" max="1" step="0.05">
@@ -470,15 +543,12 @@ _CONFIG_HTML = """<!DOCTYPE html>
   <h2>Columns</h2>
   <div id="columns-list"></div>
 
-  <h2>Advanced</h2>
-  <p style="color:#888;font-size:0.9em;">Reserved for future options.</p>
-
   <div class="actions">
     <button type="submit" id="save-btn">Save</button>
     <button type="button" id="reset-btn">Reset to defaults</button>
     <span id="msg"></span>
   </div>
-  <p class="note">After saving, refresh the OBS browser source to apply changes.</p>
+  <p class="note">Changes are picked up by the overlay automatically within a few seconds.</p>
 </form>
 
 <script>
@@ -497,21 +567,18 @@ _CONFIG_HTML = """<!DOCTYPE html>
   }
 
   function populateForm(cfg) {
-    document.getElementById('panel_width').value       = cfg.layout.panel_width;
-    document.getElementById('row_font_size').value     = cfg.typography.row_font_size;
-    document.getElementById('header_font_size').value  = cfg.typography.header_font_size;
-    document.getElementById('panel_opacity').value     = cfg.colours.panel_opacity;
-    document.getElementById('bottom_bar_opacity').value = cfg.colours.bottom_bar_opacity;
+    document.getElementById('panel_width').value       = cfg.leaderboard.panel_width;
+    document.getElementById('row_font_size').value     = cfg.leaderboard.font_size;
+    document.getElementById('panel_opacity').value     = cfg.leaderboard.opacity;
+    document.getElementById('bottom_bar_opacity').value = cfg.bottom_bar.opacity;
 
-    // Font family: select matching option or fall back to first
     const sel = document.getElementById('font_family');
-    const match = [...sel.options].find(o => o.value === cfg.typography.font_family);
-    sel.value = match ? cfg.typography.font_family : sel.options[0].value;
+    const match = [...sel.options].find(o => o.value === cfg.global.font_family);
+    sel.value = match ? cfg.global.font_family : sel.options[0].value;
 
-    // Columns
     const list = document.getElementById('columns-list');
     list.innerHTML = '';
-    for (const col of cfg.columns) {
+    for (const col of cfg.leaderboard.columns) {
       const row = document.createElement('div');
       row.className = 'col-row';
       row.innerHTML = `
@@ -528,24 +595,23 @@ _CONFIG_HTML = """<!DOCTYPE html>
   }
 
   function collectPayload() {
-    const columns = currentCfg.columns.map(col => ({
+    const columns = currentCfg.leaderboard.columns.map(col => ({
       ...col,
       visible: document.getElementById('col_' + col.key)?.checked ?? col.visible,
     }));
     return {
-      layout: {
-        panel_width: numVal('panel_width', currentCfg.layout.panel_width),
+      global: {
+        font_family: document.getElementById('font_family').value,
       },
-      typography: {
-        font_family:       document.getElementById('font_family').value,
-        row_font_size:     numVal('row_font_size',    currentCfg.typography.row_font_size),
-        header_font_size:  numVal('header_font_size', currentCfg.typography.header_font_size),
+      leaderboard: {
+        panel_width: numVal('panel_width', currentCfg.leaderboard.panel_width),
+        font_size:   numVal('row_font_size', currentCfg.leaderboard.font_size),
+        opacity:     numVal('panel_opacity', currentCfg.leaderboard.opacity),
+        columns,
       },
-      colours: {
-        panel_opacity:      numVal('panel_opacity',      currentCfg.colours.panel_opacity),
-        bottom_bar_opacity: numVal('bottom_bar_opacity', currentCfg.colours.bottom_bar_opacity),
+      bottom_bar: {
+        opacity: numVal('bottom_bar_opacity', currentCfg.bottom_bar.opacity),
       },
-      columns,
     };
   }
 

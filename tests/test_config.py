@@ -7,7 +7,7 @@ import sys
 
 import pytest
 
-from flask_overlay import get_app_dir, get_config, save_config, DEFAULT_CONFIG
+from flask_overlay import get_app_dir, get_config, save_config, DEFAULT_CONFIG, _deep_merge
 
 
 # ---------------------------------------------------------------------------
@@ -31,6 +31,38 @@ def test_get_app_dir_frozen(monkeypatch, tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# _deep_merge()
+# ---------------------------------------------------------------------------
+
+def test_deep_merge_shallow():
+    base     = {"a": 1, "b": 2}
+    override = {"b": 99, "c": 3}
+    result   = _deep_merge(base, override)
+    assert result == {"a": 1, "b": 99, "c": 3}
+
+
+def test_deep_merge_nested_dict_merges_not_replaces():
+    base     = {"section": {"x": 1, "y": 2}}
+    override = {"section": {"y": 99}}
+    result   = _deep_merge(base, override)
+    assert result["section"] == {"x": 1, "y": 99}
+
+
+def test_deep_merge_deeply_nested():
+    base     = {"a": {"b": {"c": 1, "d": 2}}}
+    override = {"a": {"b": {"d": 99}}}
+    result   = _deep_merge(base, override)
+    assert result["a"]["b"] == {"c": 1, "d": 99}
+
+
+def test_deep_merge_does_not_mutate_base():
+    base     = {"a": {"x": 1}}
+    override = {"a": {"x": 2}}
+    _deep_merge(base, override)
+    assert base["a"]["x"] == 1
+
+
+# ---------------------------------------------------------------------------
 # get_config()
 # ---------------------------------------------------------------------------
 
@@ -41,26 +73,44 @@ def test_get_config_defaults_when_no_file(tmp_path):
 
 def test_get_config_has_expected_top_level_sections(tmp_path):
     cfg = get_config(path=str(tmp_path / "config.json"))
-    for section in ("layout", "typography", "colours", "columns", "advanced"):
+    for section in ("global", "leaderboard", "bottom_bar"):
         assert section in cfg
 
 
 def test_get_config_partial_file_fills_missing_sections(tmp_path):
     p = tmp_path / "config.json"
-    p.write_text(json.dumps({"layout": {"panel_width": 400}}))
+    p.write_text(json.dumps({"leaderboard": {"panel_width": 400}}))
     cfg = get_config(path=str(p))
-    assert cfg["layout"]["panel_width"] == 400
-    assert "typography" in cfg
-    assert "columns" in cfg
+    assert cfg["leaderboard"]["panel_width"] == 400
+    assert "global" in cfg
+    assert "bottom_bar" in cfg
 
 
 def test_get_config_partial_section_fills_missing_keys(tmp_path):
     p = tmp_path / "config.json"
-    p.write_text(json.dumps({"typography": {"font_family": "Consolas"}}))
+    p.write_text(json.dumps({"global": {"font_family": "Consolas"}}))
     cfg = get_config(path=str(p))
-    assert cfg["typography"]["font_family"] == "Consolas"
-    assert "row_font_size" in cfg["typography"]
-    assert "header_font_size" in cfg["typography"]
+    assert cfg["global"]["font_family"] == "Consolas"
+
+
+def test_get_config_partial_nested_section_fills_missing_keys(tmp_path):
+    p = tmp_path / "config.json"
+    p.write_text(json.dumps({"leaderboard": {"header_font_override": {"enabled": True}}}))
+    cfg = get_config(path=str(p))
+    hdr = cfg["leaderboard"]["header_font_override"]
+    assert hdr["enabled"] is True
+    assert "font_size" in hdr
+    assert "font_colour" in hdr
+
+
+def test_get_config_old_schema_falls_back_to_defaults(tmp_path):
+    """Old-format config files (layout/typography/colours) silently reset to defaults."""
+    p = tmp_path / "config.json"
+    old = {"layout": {"panel_width": 999}, "typography": {"row_font_size": 50},
+           "colours": {"panel_opacity": 0.9}, "columns": [], "advanced": {}}
+    p.write_text(json.dumps(old))
+    cfg = get_config(path=str(p))
+    assert cfg == DEFAULT_CONFIG
 
 
 def test_get_config_empty_file_returns_full_defaults(tmp_path):
@@ -95,10 +145,10 @@ def test_get_config_permission_error_returns_defaults(tmp_path):
 def test_save_config_roundtrip(tmp_path):
     p = str(tmp_path / "config.json")
     cfg = get_config(path=p)
-    cfg["layout"]["panel_width"] = 999
+    cfg["leaderboard"]["panel_width"] = 999
     save_config(cfg, path=p)
     loaded = get_config(path=p)
-    assert loaded["layout"]["panel_width"] == 999
+    assert loaded["leaderboard"]["panel_width"] == 999
 
 
 def test_save_config_writes_to_expected_path(tmp_path):
@@ -116,14 +166,14 @@ def test_save_config_writes_to_expected_path(tmp_path):
 def test_columns_order_preserved(tmp_path):
     p = str(tmp_path / "config.json")
     cfg = get_config(path=p)
-    cfg["columns"] = [
+    cfg["leaderboard"]["columns"] = [
         {"key": "races",    "label": "R", "visible": True},
         {"key": "points",   "label": "P", "visible": True},
         {"key": "survived", "label": "S", "visible": True},
     ]
     save_config(cfg, path=p)
     loaded = get_config(path=p)
-    assert [c["key"] for c in loaded["columns"]] == ["races", "points", "survived"]
+    assert [c["key"] for c in loaded["leaderboard"]["columns"]] == ["races", "points", "survived"]
 
 
 # ---------------------------------------------------------------------------
@@ -135,42 +185,54 @@ def test_api_config_get_returns_200_and_json(client):
     assert resp.status_code == 200
     data = resp.get_json()
     assert data is not None
-    for section in ("layout", "typography", "colours", "columns", "advanced"):
+    for section in ("global", "leaderboard", "bottom_bar"):
         assert section in data
 
 
 def test_api_config_get_returns_defaults_when_no_file(client):
     resp = client.get("/api/config")
     data = resp.get_json()
-    assert data["layout"]["panel_width"] == DEFAULT_CONFIG["layout"]["panel_width"]
+    assert data["leaderboard"]["panel_width"] == DEFAULT_CONFIG["leaderboard"]["panel_width"]
 
 
 def test_api_config_post_valid_saves_and_returns_200(client):
-    payload = {"layout": {"panel_width": 400}}
+    payload = {"leaderboard": {"panel_width": 400}}
     resp = client.post("/api/config",
                        data=json.dumps(payload),
                        content_type="application/json")
     assert resp.status_code == 200
     data = resp.get_json()
-    assert data["layout"]["panel_width"] == 400
+    assert data["leaderboard"]["panel_width"] == 400
 
 
 def test_api_config_post_returns_saved_values_on_get(client):
     client.post("/api/config",
-                data=json.dumps({"layout": {"panel_width": 350}}),
+                data=json.dumps({"leaderboard": {"panel_width": 350}}),
                 content_type="application/json")
     resp = client.get("/api/config")
-    assert resp.get_json()["layout"]["panel_width"] == 350
+    assert resp.get_json()["leaderboard"]["panel_width"] == 350
 
 
 def test_api_config_post_partial_merges(client):
     client.post("/api/config",
-                data=json.dumps({"typography": {"row_font_size": 32}}),
+                data=json.dumps({"leaderboard": {"font_size": 32}}),
                 content_type="application/json")
     data = client.get("/api/config").get_json()
-    assert data["typography"]["row_font_size"] == 32
+    assert data["leaderboard"]["font_size"] == 32
     # other sections untouched
-    assert data["layout"]["panel_width"] == DEFAULT_CONFIG["layout"]["panel_width"]
+    assert data["leaderboard"]["panel_width"] == DEFAULT_CONFIG["leaderboard"]["panel_width"]
+
+
+def test_api_config_post_deep_merges_nested_dict(client):
+    """Posting a partial nested dict preserves sibling keys."""
+    resp = client.post("/api/config",
+                       data=json.dumps({"leaderboard": {"header_font_override": {"enabled": True}}}),
+                       content_type="application/json")
+    assert resp.status_code == 200
+    hdr = resp.get_json()["leaderboard"]["header_font_override"]
+    assert hdr["enabled"] is True
+    assert "font_size" in hdr
+    assert "font_colour" in hdr
 
 
 def test_api_config_post_invalid_json_returns_400(client):
@@ -196,7 +258,7 @@ def test_api_config_post_returns_500_on_save_failure(client, monkeypatch):
         raise OSError("disk full")
     monkeypatch.setattr(flask_overlay, "save_config", boom)
     resp = client.post("/api/config",
-                       data=json.dumps({"layout": {"panel_width": 400}}),
+                       data=json.dumps({"leaderboard": {"panel_width": 400}}),
                        content_type="application/json")
     assert resp.status_code == 500
     assert "error" in resp.get_json()
