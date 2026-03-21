@@ -129,6 +129,9 @@ _OVERLAY_HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;700&family=Roboto+Mono:wght@400;700&family=JetBrains+Mono:wght@400;700&family=Fira+Code:wght@400;700&family=Space+Mono:wght@400;700&family=Inconsolata:wght@400;700&family=IBM+Plex+Mono:wght@400;700&family=Barlow+Condensed:wght@400;700&family=Oswald:wght@400;700&family=Rajdhani:wght@400;600&family=Chakra+Petch:wght@400;700&family=Exo+2:wght@400;700&family=Bebas+Neue&family=Roboto:wght@400;700&family=Inter:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Open+Sans:wght@400;700&family=Nunito:wght@400;700&display=swap">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -587,13 +590,9 @@ _CONFIG_HTML = """<!DOCTYPE html>
   <details id="sec-global">
     <summary>Global</summary>
     <div class="details-body">
-      <label for="font_family">Font family</label>
-      <select id="font_family">
-        <option value="Courier New, monospace">Courier New</option>
-        <option value="Consolas, monospace">Consolas</option>
-        <option value="Lucida Console, monospace">Lucida Console</option>
-        <option value="monospace">monospace (system default)</option>
-      </select>
+      <label for="font_filter">Font family</label>
+      <input type="text" id="font_filter" placeholder="Filter fonts…" autocomplete="off">
+      <select id="font_family" style="margin-top:4px"></select>
     </div>
   </details>
 
@@ -709,6 +708,58 @@ _CONFIG_HTML = """<!DOCTYPE html>
 </form>
 
 <script>
+  const FONTS = [
+    // Monospaced
+    {label: "Courier New",      value: "Courier New, monospace",           category: "Mono"},
+    {label: "Consolas",         value: "Consolas, monospace",              category: "Mono"},
+    {label: "Lucida Console",   value: "Lucida Console, monospace",        category: "Mono"},
+    {label: "Source Code Pro",  value: "'Source Code Pro', monospace",     category: "Mono"},
+    {label: "Roboto Mono",      value: "'Roboto Mono', monospace",         category: "Mono"},
+    {label: "JetBrains Mono",   value: "'JetBrains Mono', monospace",      category: "Mono"},
+    {label: "Fira Code",        value: "'Fira Code', monospace",           category: "Mono"},
+    {label: "Space Mono",       value: "'Space Mono', monospace",          category: "Mono"},
+    {label: "Inconsolata",      value: "Inconsolata, monospace",           category: "Mono"},
+    {label: "IBM Plex Mono",    value: "'IBM Plex Mono', monospace",       category: "Mono"},
+    // Condensed
+    {label: "Barlow Condensed", value: "'Barlow Condensed', sans-serif",   category: "Condensed"},
+    {label: "Oswald",           value: "Oswald, sans-serif",               category: "Condensed"},
+    {label: "Rajdhani",         value: "Rajdhani, sans-serif",             category: "Condensed"},
+    {label: "Chakra Petch",     value: "'Chakra Petch', sans-serif",       category: "Condensed"},
+    {label: "Exo 2",            value: "'Exo 2', sans-serif",              category: "Condensed"},
+    {label: "Bebas Neue",       value: "'Bebas Neue', sans-serif",         category: "Condensed"},
+    // Sans-serif
+    {label: "Roboto",           value: "Roboto, sans-serif",               category: "Sans-serif"},
+    {label: "Inter",            value: "Inter, sans-serif",                category: "Sans-serif"},
+    {label: "Lato",             value: "Lato, sans-serif",                 category: "Sans-serif"},
+    {label: "Montserrat",       value: "Montserrat, sans-serif",           category: "Sans-serif"},
+    {label: "Open Sans",        value: "'Open Sans', sans-serif",          category: "Sans-serif"},
+    {label: "Nunito",           value: "Nunito, sans-serif",               category: "Sans-serif"},
+  ];
+
+  function buildFontSelect(filter) {
+    const sel = document.getElementById('font_family');
+    const current = sel.value;
+    sel.innerHTML = '';
+    const q = filter.toLowerCase();
+    const visible = FONTS.filter(f =>
+      f.label.toLowerCase().includes(q) || f.category.toLowerCase().includes(q)
+    );
+    let grp = null, lastCat = null;
+    for (const f of visible) {
+      if (f.category !== lastCat) {
+        grp = document.createElement('optgroup');
+        grp.label = f.category;
+        sel.appendChild(grp);
+        lastCat = f.category;
+      }
+      const opt = document.createElement('option');
+      opt.value = f.value;
+      opt.textContent = f.label;
+      grp.appendChild(opt);
+    }
+    if ([...sel.options].find(o => o.value === current)) sel.value = current;
+  }
+
   let currentCfg = null;
 
   async function loadConfig() {
@@ -725,6 +776,8 @@ _CONFIG_HTML = """<!DOCTYPE html>
 
   function populateForm(cfg) {
     // Global
+    document.getElementById('font_filter').value = '';
+    buildFontSelect('');
     const sel = document.getElementById('font_family');
     const match = [...sel.options].find(o => o.value === cfg.global.font_family);
     sel.value = match ? cfg.global.font_family : sel.options[0].value;
@@ -887,6 +940,10 @@ _CONFIG_HTML = """<!DOCTYPE html>
   // Prevent enable checkboxes inside <summary> from toggling the <details>
   ['lb_enabled', 'bb_enabled', 'hdr_override_enabled', 'row_bg_alt_enabled'].forEach(id => {
     document.getElementById(id).addEventListener('click', e => e.stopPropagation());
+  });
+
+  document.getElementById('font_filter').addEventListener('input', function() {
+    buildFontSelect(this.value);
   });
 
   loadConfig();
