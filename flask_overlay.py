@@ -18,6 +18,7 @@ import copy
 import json
 import os
 import sys
+import tempfile
 
 from flask import Flask, jsonify, render_template_string, request
 
@@ -117,8 +118,13 @@ def get_config(path: str | None = None) -> dict:
 
 def save_config(config: dict, path: str | None = None) -> None:
     p = path or CONFIG_PATH
-    with open(p, "w", encoding="utf-8") as f:
+    dir_ = os.path.dirname(p) or "."
+    with tempfile.NamedTemporaryFile(
+        "w", dir=dir_, suffix=".tmp", delete=False, encoding="utf-8"
+    ) as f:
         json.dump(config, f, indent=2)
+        tmp = f.name
+    os.replace(tmp, p)  # atomic on both POSIX and Windows
 
 
 # ---------------------------------------------------------------------------
@@ -462,6 +468,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     let data;
     try {
       const resp = await fetch('/api/state');
+      if (!resp.ok) return;
       data = await resp.json();
     } catch (_) {
       return;
@@ -556,6 +563,7 @@ _CONFIG_HTML = """<!DOCTYPE html>
   input[type=number], input[type=text], select { width: 100%; padding: 6px; box-sizing: border-box; }
   input[type=color] { width: 48px; height: 32px; padding: 2px; border: 1px solid #ccc; cursor: pointer; vertical-align: middle; }
   input[type=checkbox] { cursor: pointer; }
+  #font_family { margin-top: 4px; }
   details { border: 1px solid #ddd; border-radius: 4px; margin: 12px 0; }
   details details { margin: 10px 0 4px; }
   summary { padding: 10px 12px; cursor: pointer; font-weight: bold; font-size: 1em; list-style: none; display: flex; align-items: center; gap: 10px; user-select: none; }
@@ -592,7 +600,7 @@ _CONFIG_HTML = """<!DOCTYPE html>
     <div class="details-body">
       <label for="font_filter">Font family</label>
       <input type="text" id="font_filter" placeholder="Filter fonts…" autocomplete="off">
-      <select id="font_family" style="margin-top:4px"></select>
+      <select id="font_family"></select>
     </div>
   </details>
 
