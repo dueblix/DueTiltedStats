@@ -62,6 +62,29 @@ def test_deep_merge_does_not_mutate_base():
     assert base["a"]["x"] == 1
 
 
+def test_deep_merge_ignores_non_dict_overriding_dict():
+    """A scalar/null override must not clobber a dict section."""
+    base     = {"section": {"x": 1}}
+    override = {"section": "bad"}
+    result   = _deep_merge(base, override)
+    assert result["section"] == {"x": 1}
+
+
+def test_deep_merge_ignores_non_list_overriding_list():
+    """A null/scalar override must not clobber a list (e.g. columns)."""
+    base     = {"items": [1, 2, 3]}
+    override = {"items": None}
+    result   = _deep_merge(base, override)
+    assert result["items"] == [1, 2, 3]
+
+
+def test_deep_merge_allows_list_replacing_list():
+    base     = {"items": [1, 2, 3]}
+    override = {"items": [4, 5]}
+    result   = _deep_merge(base, override)
+    assert result["items"] == [4, 5]
+
+
 # ---------------------------------------------------------------------------
 # get_config()
 # ---------------------------------------------------------------------------
@@ -125,6 +148,14 @@ def test_get_config_corrupt_json_returns_defaults(tmp_path):
     p.write_text("not valid json {{{{")
     cfg = get_config(path=str(p))
     assert cfg == DEFAULT_CONFIG
+
+
+def test_get_config_non_dict_root_returns_defaults(tmp_path):
+    """JSON arrays or scalars at the root must not crash — return defaults."""
+    for payload in ("[1, 2, 3]", '"a string"', "42"):
+        p = tmp_path / "config.json"
+        p.write_text(payload)
+        assert get_config(path=str(p)) == DEFAULT_CONFIG
 
 
 def test_get_config_permission_error_returns_defaults(tmp_path):

@@ -81,11 +81,20 @@ CONFIG_PATH = os.path.join(get_app_dir(), "config.json")
 
 
 def _deep_merge(base: dict, override: dict) -> dict:
-    """Return a new dict: override values recursively merged over base."""
+    """Return a new dict: override values recursively merged over base.
+
+    Type safety: if the base value at a key is a dict or list, an override
+    value of a different type is silently ignored to prevent structural damage
+    from a corrupt or manually-edited config file.
+    """
     result = copy.deepcopy(base)
     for key, val in override.items():
         if key in result and isinstance(result[key], dict) and isinstance(val, dict):
             result[key] = _deep_merge(result[key], val)
+        elif key in result and isinstance(result[key], dict) and not isinstance(val, dict):
+            pass  # don't clobber a dict section with a scalar/null
+        elif key in result and isinstance(result[key], list) and not isinstance(val, list):
+            pass  # don't clobber a list (e.g. columns) with a scalar/null
         else:
             result[key] = copy.deepcopy(val)
     return result
@@ -97,6 +106,8 @@ def get_config(path: str | None = None) -> dict:
     try:
         with open(p, "r", encoding="utf-8") as f:
             data = json.load(f)
+        if not isinstance(data, dict):
+            return copy.deepcopy(DEFAULT_CONFIG)
         # Only keep known top-level keys; old-schema files fall back to defaults
         known = {k: v for k, v in data.items() if k in DEFAULT_CONFIG}
         return _deep_merge(DEFAULT_CONFIG, known)
@@ -496,14 +507,16 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   }
 
   // applyConfig must complete before refresh: refresh reads activeColumns
-  // (set by applyConfig) to build leaderboard rows.
+  // (set by applyConfig) to build leaderboard rows. setTimeout (not setInterval)
+  // ensures the next tick only starts after the current one finishes, preventing
+  // concurrent ticks from interleaving DOM writes on slow connections.
   async function tick() {
     await applyConfig();
     await refresh();
+    setTimeout(tick, POLL_INTERVAL);
   }
 
   tick();
-  setInterval(tick, POLL_INTERVAL);
 </script>
 </body>
 </html>"""
