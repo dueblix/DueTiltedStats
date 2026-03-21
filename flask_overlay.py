@@ -708,6 +708,7 @@ _CONFIG_HTML = """<!DOCTYPE html>
 </form>
 
 <script>
+  // NOTE: Adding a Google Font here also requires updating the stylesheet URL in _OVERLAY_HTML.
   const FONTS = [
     // Monospaced
     {label: "Courier New",      value: "Courier New, monospace",           category: "Mono"},
@@ -739,11 +740,12 @@ _CONFIG_HTML = """<!DOCTYPE html>
   function buildFontSelect(filter) {
     const sel = document.getElementById('font_family');
     const current = sel.value;
-    sel.innerHTML = '';
-    const q = filter.toLowerCase();
+    const query = filter.toLowerCase();
     const visible = FONTS.filter(f =>
-      f.label.toLowerCase().includes(q) || f.category.toLowerCase().includes(q)
+      f.label.toLowerCase().includes(query) || f.category.toLowerCase().includes(query)
     );
+    if (visible.length === 0) return;  // keep existing options rather than leaving select empty
+    sel.innerHTML = '';
     let grp = null, lastCat = null;
     for (const f of visible) {
       if (f.category !== lastCat) {
@@ -823,12 +825,14 @@ _CONFIG_HTML = """<!DOCTYPE html>
       row.innerHTML = `
         <button type="button" class="move-btn" onclick="moveColumn('${col.key}', -1)">&#9650;</button>
         <button type="button" class="move-btn" onclick="moveColumn('${col.key}', +1)">&#9660;</button>
-        <input type="text" class="col-label-input" id="col_label_${col.key}"
-               value="${col.label}" data-saved-label="${col.label}">
+        <input type="text" class="col-label-input" id="col_label_${col.key}">
         <input type="checkbox" id="col_vis_${col.key}" ${col.visible ? 'checked' : ''}>
         <span class="col-key">${col.key}</span>
       `;
-      row.querySelector('.col-label-input').addEventListener('blur', function() {
+      const labelInput = row.querySelector('.col-label-input');
+      labelInput.value = col.label;
+      labelInput.dataset.savedLabel = col.label;
+      labelInput.addEventListener('blur', function() {
         if (this.value.trim() === '') this.value = this.dataset.savedLabel;
       });
       list.appendChild(row);
@@ -854,7 +858,7 @@ _CONFIG_HTML = """<!DOCTYPE html>
     const columns = [];
     for (const row of document.querySelectorAll('#columns-list .col-row')) {
       const key = row.dataset.key;
-      const orig = (currentCfg.leaderboard.columns.find(c => c.key === key) || {}).label;
+      const orig = currentCfg.leaderboard.columns.find(c => c.key === key).label;
       columns.push({
         key,
         label:   document.getElementById('col_label_' + key).value.trim() || orig,
