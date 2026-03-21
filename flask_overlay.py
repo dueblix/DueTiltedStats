@@ -303,9 +303,10 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   let lastLayoutSig = null;  // detects layout-affecting config changes
 
   function layoutSig(lb) {
-    // Captures all fields that affect row height or column structure
+    // Captures fields that affect row height (font_size) or column structure
+    // (visible set and labels). panel_width doesn't affect either so is excluded.
     const cols = lb.columns.filter(c => c.visible).map(c => `${c.key}:${c.label}`).join(',');
-    return `${lb.panel_width}|${lb.font_size}|${cols}`;
+    return `${lb.font_size}|${cols}`;
   }
 
   // Map column key -> player data field
@@ -315,6 +316,9 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     races:    'levels_played',
   };
 
+  // Lighten each RGB channel by 16/255 (~6%) to produce the automatic
+  // alternating row colour when row_background_alt.enabled is false.
+  // Fallback '#2a2a2a' matches the default alt colour in DEFAULT_CONFIG.
   function deriveAltColour(hex) {
     if (!hex || hex.length < 7) return '#2a2a2a';
     const r = Math.min(255, parseInt(hex.slice(1, 3), 16) + 16);
@@ -340,33 +344,37 @@ _OVERLAY_HTML = """<!DOCTYPE html>
 
     document.getElementById('right-panel').style.display = lb.enabled ? '' : 'none';
 
+    // --- Global + leaderboard layout ---
     body.style.setProperty('--font-family',     cfg.global.font_family);
     body.style.setProperty('--panel-width',      lb.panel_width + 'px');
     body.style.setProperty('--panel-opacity',    lb.opacity);
     body.style.setProperty('--row-font-size',    lb.font_size + 'px');
     body.style.setProperty('--row-font-colour',  lb.font_colour);
 
+    // --- Header font: use override values when enabled, else inherit from row ---
     const hdr = lb.header_font_override;
     body.style.setProperty('--header-font-size',
         (hdr.enabled ? hdr.font_size : lb.font_size) + 'px');
     body.style.setProperty('--header-font-colour',
         hdr.enabled ? hdr.font_colour : lb.font_colour);
 
+    // --- Row backgrounds ---
     const rowBg = lb.row_background_colour;
     body.style.setProperty('--row-bg', rowBg);
     let altBg;
     if (lb.row_background === 'solid') {
-      altBg = rowBg;
+      altBg = rowBg;                          // no alternation
     } else if (lb.row_background_alt.enabled) {
-      altBg = lb.row_background_alt.colour;
+      altBg = lb.row_background_alt.colour;   // explicit alt colour
     } else {
-      altBg = deriveAltColour(rowBg);
+      altBg = deriveAltColour(rowBg);         // auto-derived from primary
     }
     body.style.setProperty('--row-bg-alt', altBg);
 
     body.style.setProperty('--row-separator',
         lb.row_separator === 'line' ? '1px solid rgba(255,255,255,0.1)' : 'none');
 
+    // --- Bottom bar ---
     body.style.setProperty('--bottom-bar-opacity',      bb.opacity);
     body.style.setProperty('--bottom-bar-font-size',    bb.font_size + 'px');
     body.style.setProperty('--bottom-bar-font-colour',  bb.font_colour);
@@ -392,11 +400,12 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     const thead    = document.querySelector('#leaderboard thead tr');
     const available = panel.clientHeight - thead.offsetHeight;
     const tbody    = document.getElementById('lb-body');
+    // Insert a representative row to measure its rendered height, then remove it.
     const test     = document.createElement('tr');
     const emptyCells = activeColumns.map(() => '<td>0</td>').join('');
     test.innerHTML = `<td class="name">x</td>${emptyCells}`;
     tbody.appendChild(test);
-    const rowH = test.offsetHeight || 29;
+    const rowH = test.offsetHeight || 54;  // 54px matches the CSS row height
     tbody.removeChild(test);
     return Math.max(1, Math.floor(available / rowH));
   }
@@ -446,6 +455,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     statusDiv.style.display = data.status === 'idle' ? 'block' : 'none';
 
     // --- Bottom bar ---
+    // currentConfig is null only if applyConfig hasn't succeeded yet on first tick.
     if (data.last_level && currentConfig?.bottom_bar.enabled) {
       const ll = data.last_level;
 
@@ -485,6 +495,8 @@ _OVERLAY_HTML = """<!DOCTYPE html>
       .replace(/"/g, '&quot;');
   }
 
+  // applyConfig must complete before refresh: refresh reads activeColumns
+  // (set by applyConfig) to build leaderboard rows.
   async function tick() {
     await applyConfig();
     await refresh();
