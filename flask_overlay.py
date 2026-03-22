@@ -669,49 +669,54 @@ _CONFIG_HTML = """<!DOCTYPE html>
         </div>
       </div>
 
-      <div class="field-pair">
-        <div>
-          <label for="hdr_text_transform">Header text transform</label>
-          <select id="hdr_text_transform">
-            <option value="uppercase">Uppercase</option>
-            <option value="none">None</option>
-          </select>
-        </div>
-        <div>
-          <label for="hdr_font_weight">Header font weight</label>
-          <select id="hdr_font_weight">
-            <option value="normal">Normal</option>
-            <option value="bold">Bold</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Header override -->
-      <details id="sec-header-override">
-        <summary>
-          <input type="checkbox" id="hdr_override_enabled"> Header override
-        </summary>
+      <!-- Header appearance -->
+      <details id="sec-header">
+        <summary>Header appearance</summary>
         <div class="details-body">
           <div class="field-pair">
             <div>
-              <label for="hdr_font_size">Font size (px)</label>
-              <input type="number" id="hdr_font_size" min="8" max="120">
+              <label for="hdr_text_transform">Text transform</label>
+              <select id="hdr_text_transform">
+                <option value="uppercase">Uppercase</option>
+                <option value="none">None</option>
+              </select>
             </div>
             <div>
-              <label for="hdr_font_colour">Font colour</label>
-              <input type="color" id="hdr_font_colour">
+              <label for="hdr_font_weight">Font weight</label>
+              <select id="hdr_font_weight">
+                <option value="normal">Normal</option>
+                <option value="bold">Bold</option>
+              </select>
             </div>
           </div>
-          <div class="field-pair">
-            <div>
-              <label for="hdr_bg_opacity">Opacity (0–1)</label>
-              <input type="number" id="hdr_bg_opacity" min="0" max="1" step="0.05">
+
+          <details id="sec-header-override">
+            <summary>
+              <input type="checkbox" id="hdr_override_enabled"> Font and colour override
+            </summary>
+            <div class="details-body">
+              <div class="field-pair">
+                <div>
+                  <label for="hdr_font_size">Font size (px)</label>
+                  <input type="number" id="hdr_font_size" min="8" max="120">
+                </div>
+                <div>
+                  <label for="hdr_font_colour">Font colour</label>
+                  <input type="color" id="hdr_font_colour">
+                </div>
+              </div>
+              <div class="field-pair">
+                <div>
+                  <label for="hdr_bg_opacity">Opacity (0–1)</label>
+                  <input type="number" id="hdr_bg_opacity" min="0" max="1" step="0.05">
+                </div>
+                <div>
+                  <label for="hdr_bg_colour">Background colour</label>
+                  <input type="color" id="hdr_bg_colour">
+                </div>
+              </div>
             </div>
-            <div>
-              <label for="hdr_bg_colour">Background colour</label>
-              <input type="color" id="hdr_bg_colour">
-            </div>
-          </div>
+          </details>
         </div>
       </details>
 
