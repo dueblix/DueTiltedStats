@@ -762,7 +762,7 @@ _CONFIG_HTML = """<!DOCTYPE html>
             <option value="line">Line</option>
           </select>
 
-          <label for="lb_row_height" style="margin-top:8px">Row height (px)</label>
+          <label for="lb_row_height">Row height (px)</label>
           <input type="number" id="lb_row_height" min="20" max="200">
           <div class="field-pair">
             <div>
