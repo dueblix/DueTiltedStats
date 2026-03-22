@@ -55,9 +55,11 @@ DEFAULT_CONFIG = {
         "row_separator": "none",
         "show_session_label": True,
         "columns": [
-            {"key": "points",   "label": "P", "visible": True},
-            {"key": "survived", "label": "S", "visible": True},
-            {"key": "races",    "label": "R", "visible": True},
+            {"key": "rank",     "label": "#",      "visible": True},
+            {"key": "name",     "label": "Player",  "visible": True},
+            {"key": "points",   "label": "P",       "visible": True},
+            {"key": "survived", "label": "S",       "visible": True},
+            {"key": "races",    "label": "R",       "visible": True},
         ],
     },
     "bottom_bar": {
@@ -428,10 +430,11 @@ _OVERLAY_HTML = """<!DOCTYPE html>
       lastLayoutSig  = sig;
       activeColumns  = lb.columns.filter(c => c.visible);
       const headRow  = document.getElementById('lb-head');
-      headRow.innerHTML = '<th class="name">Player</th>';
+      headRow.innerHTML = '';
       for (const col of activeColumns) {
         const th = document.createElement('th');
         th.textContent = col.label;
+        if (col.key === 'name') th.className = 'name';
         headRow.appendChild(th);
       }
       rowCount = null;
@@ -445,8 +448,9 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     const tbody    = document.getElementById('lb-body');
     // Insert a representative row to measure its rendered height, then remove it.
     const test     = document.createElement('tr');
-    const emptyCells = activeColumns.map(() => '<td>0</td>').join('');
-    test.innerHTML = `<td class="name">x</td>${emptyCells}`;
+    test.innerHTML = activeColumns.map(col =>
+      col.key === 'name' ? '<td class="name">x</td>' : '<td>0</td>'
+    ).join('');
     tbody.appendChild(test);
     const rowH = test.offsetHeight || 54;  // 54px matches the CSS row height
     tbody.removeChild(test);
@@ -461,14 +465,16 @@ _OVERLAY_HTML = """<!DOCTYPE html>
       const p = players[i];
       const tr = document.createElement('tr');
       if (p) {
-        const dataCells = activeColumns.map(col => {
+        tr.innerHTML = activeColumns.map(col => {
+          if (col.key === 'name') return `<td class="name" style="color:${p.colour}">${escHtml(p.display_name)}</td>`;
+          if (col.key === 'rank') return `<td>${i + 1}</td>`;
           const field = COL_FIELD[col.key];
           return `<td>${field !== undefined ? p[field] : ''}</td>`;
         }).join('');
-        tr.innerHTML = `<td class="name" style="color:${p.colour}">${escHtml(p.display_name)}</td>${dataCells}`;
       } else {
-        const emptyCells = activeColumns.map(() => '<td></td>').join('');
-        tr.innerHTML = `<td class="name"></td>${emptyCells}`;
+        tr.innerHTML = activeColumns.map(col =>
+          col.key === 'name' ? '<td class="name"></td>' : '<td></td>'
+        ).join('');
       }
       tbody.appendChild(tr);
     }
@@ -864,11 +870,12 @@ _CONFIG_HTML = """<!DOCTYPE html>
       const row = document.createElement('div');
       row.className = 'col-row';
       row.dataset.key = col.key;
+      const isName = col.key === 'name';
       row.innerHTML = `
         <button type="button" class="move-btn" onclick="moveColumn('${col.key}', -1)">&#9650;</button>
         <button type="button" class="move-btn" onclick="moveColumn('${col.key}', +1)">&#9660;</button>
         <input type="text" class="col-label-input" id="col_label_${col.key}">
-        <input type="checkbox" id="col_vis_${col.key}" ${col.visible ? 'checked' : ''}>
+        <input type="checkbox" id="col_vis_${col.key}" ${col.visible ? 'checked' : ''} ${isName ? 'disabled' : ''}>
         <span class="col-key">${col.key}</span>
       `;
       const labelInput = row.querySelector('.col-label-input');
@@ -907,7 +914,7 @@ _CONFIG_HTML = """<!DOCTYPE html>
       columns.push({
         key,
         label:   document.getElementById('col_label_' + key).value.trim() || orig,
-        visible: document.getElementById('col_vis_' + key).checked,
+        visible: key === 'name' ? true : document.getElementById('col_vis_' + key).checked,
       });
     }
     return {
