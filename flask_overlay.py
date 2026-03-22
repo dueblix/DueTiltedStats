@@ -149,7 +149,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   body {
     --font-family: 'Courier New', monospace;
     --panel-width: 310px;
-    --panel-opacity: 0.6;
+    --panel-opacity: 0.6;   /* used by #status background; rows use hexToRgba() instead */
     --row-font-size: 40px;
     --row-font-colour: #ffffff;
     --header-font-size: 40px;
@@ -342,6 +342,8 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   // player objects. When a new column type is added to DEFAULT_CONFIG, a
   // corresponding entry must be added here AND the /api/state route must
   // include that field in each player dict.
+  // 'rank' and 'name' are handled by explicit branches in renderRows; only
+  // data columns that map to a player-object field belong here.
   const COL_FIELD = {
     points:   'exp_earned',
     survived: 'levels_survived',
