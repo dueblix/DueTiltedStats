@@ -650,12 +650,12 @@ _CONFIG_HTML = """<!DOCTYPE html>
           </div>
           <div class="field-pair">
             <div>
-              <label for="hdr_bg_colour">Background colour</label>
-              <input type="color" id="hdr_bg_colour">
-            </div>
-            <div>
               <label for="hdr_bg_opacity">Opacity (0–1)</label>
               <input type="number" id="hdr_bg_opacity" min="0" max="1" step="0.05">
+            </div>
+            <div>
+              <label for="hdr_bg_colour">Background colour</label>
+              <input type="color" id="hdr_bg_colour">
             </div>
           </div>
         </div>
