@@ -50,6 +50,7 @@ DEFAULT_CONFIG = {
         "row_background_alt": {
             "enabled": False,
             "colour": "#2a2a2a",
+            "opacity": 0.60,
         },
         "row_separator": "none",
         "show_session_label": True,
@@ -403,9 +404,10 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     // --- Row backgrounds ---
     const rowBg  = lb.row_background_colour;
     const altCfg = lb.row_background_alt || {};
-    const altHex = altCfg.enabled ? altCfg.colour : rowBg;
+    const altHex     = altCfg.enabled ? altCfg.colour               : rowBg;
+    const altOpacity = altCfg.enabled ? (altCfg.opacity ?? lb.opacity) : lb.opacity;
     body.style.setProperty('--row-bg',     hexToRgba(rowBg,  lb.opacity));
-    body.style.setProperty('--row-bg-alt', hexToRgba(altHex, lb.opacity));
+    body.style.setProperty('--row-bg-alt', hexToRgba(altHex, altOpacity));
 
     // --- Header background ---
     const hdrBgHex     = hdr.enabled ? (hdr.bg_colour  || '#000000') : rowBg;
@@ -681,10 +683,18 @@ _CONFIG_HTML = """<!DOCTYPE html>
               <input type="checkbox" id="row_bg_alt_enabled"> Alternating row colour
             </summary>
             <div class="details-body">
-              <div class="inline-row">
-                <label for="row_bg_alt_colour" style="margin:0">Alt row colour</label>
-                <input type="color" id="row_bg_alt_colour">
-                <button type="button" id="row_bg_alt_reset">Reset to default</button>
+              <div class="field-pair">
+                <div>
+                  <label for="row_bg_alt_opacity">Opacity (0–1)</label>
+                  <input type="number" id="row_bg_alt_opacity" min="0" max="1" step="0.05">
+                </div>
+                <div>
+                  <label for="row_bg_alt_colour">Alt row colour</label>
+                  <div class="inline-row" style="margin:0">
+                    <input type="color" id="row_bg_alt_colour">
+                    <button type="button" id="row_bg_alt_reset">Reset to default</button>
+                  </div>
+                </div>
               </div>
             </div>
           </details>
@@ -832,6 +842,7 @@ _CONFIG_HTML = """<!DOCTYPE html>
     // Row background
     document.getElementById('row_bg_colour').value         = cfg.leaderboard.row_background_colour;
     document.getElementById('row_bg_alt_enabled').checked  = cfg.leaderboard.row_background_alt.enabled;
+    document.getElementById('row_bg_alt_opacity').value    = cfg.leaderboard.row_background_alt.opacity;
     document.getElementById('row_bg_alt_colour').value     = cfg.leaderboard.row_background_alt.colour;
 
     // Row separator
@@ -918,6 +929,7 @@ _CONFIG_HTML = """<!DOCTYPE html>
         row_background_colour: document.getElementById('row_bg_colour').value,
         row_background_alt: {
           enabled: document.getElementById('row_bg_alt_enabled').checked,
+          opacity: numVal('row_bg_alt_opacity', currentCfg.leaderboard.row_background_alt.opacity),
           colour:  document.getElementById('row_bg_alt_colour').value,
         },
         row_separator:      document.getElementById('row_separator').value,
@@ -991,7 +1003,8 @@ _CONFIG_HTML = """<!DOCTYPE html>
 
   document.getElementById('row_bg_alt_reset').addEventListener('click', () => {
     const primary = document.getElementById('row_bg_colour').value;
-    document.getElementById('row_bg_alt_colour').value = deriveAltColour(primary);
+    document.getElementById('row_bg_alt_colour').value  = deriveAltColour(primary);
+    document.getElementById('row_bg_alt_opacity').value = document.getElementById('lb_opacity').value;
   });
 
   document.getElementById('font_filter').addEventListener('input', function() {
