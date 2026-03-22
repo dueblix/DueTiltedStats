@@ -52,6 +52,12 @@ DEFAULT_CONFIG = {
             "colour": "#2a2a2a",
             "opacity": 0.60,
         },
+        "header_text_transform": "uppercase",
+        "header_font_weight": "normal",
+        "row_height": 54,
+        "cell_padding_v": 4,
+        "cell_padding_h": 6,
+        "panel_border_radius": 0,
         "row_separator": "none",
         "show_session_label": True,
         "columns": [
@@ -157,6 +163,12 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     --row-bg: #1a1a1a;
     --row-bg-alt: #2a2a2a;
     --row-separator: none;
+    --header-text-transform: uppercase;
+    --header-font-weight: normal;
+    --row-height: 54px;
+    --cell-padding-v: 4px;
+    --cell-padding-h: 6px;
+    --panel-border-radius: 0px;
     --bottom-bar-opacity: 0.75;
     --bottom-bar-font-size: 20px;
     --bottom-bar-font-colour: #ffffff;
@@ -179,6 +191,8 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     right: 0;
     width: var(--panel-width);
     z-index: 1;
+    border-radius: var(--panel-border-radius);
+    overflow: hidden;
   }
 
   #status {
@@ -203,10 +217,10 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   #leaderboard thead th {
     color: var(--header-font-colour);
     font-size: var(--header-font-size);
-    font-weight: normal;
-    text-transform: uppercase;
+    font-weight: var(--header-font-weight);
+    text-transform: var(--header-text-transform);
     letter-spacing: 0.1em;
-    padding: 4px 6px;
+    padding: var(--cell-padding-v) var(--cell-padding-h);
     text-align: center;
     white-space: nowrap;
   }
@@ -219,7 +233,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   #leaderboard tbody tr {
     background: var(--row-bg);
     border-bottom: var(--row-separator);
-    height: 54px;
+    height: var(--row-height);
   }
 
   #leaderboard tbody tr:nth-child(odd) {
@@ -227,7 +241,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   }
 
   #leaderboard tbody td {
-    padding: 4px 6px;
+    padding: var(--cell-padding-v) var(--cell-padding-h);
     vertical-align: middle;
     white-space: nowrap;
     text-align: center;
@@ -330,12 +344,14 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     // and rowCount are rebuilt only when something layout-relevant changes.
     //   font_size        — body row height
     //   headerFontSize   — thead height (header_font_override may differ from body)
+    //   row_height       — explicit row height override
+    //   cell_padding_v   — vertical padding affects row height
     //   cols             — visible column set and labels
-    // Excluded: panel_width, colours, opacity — none affect row or header height.
+    // Excluded: panel_width, colours, opacity, text-transform — none affect row height.
     const hdr = lb.header_font_override || {};
     const headerFontSize = hdr.enabled ? hdr.font_size : lb.font_size;
     const cols = lb.columns.filter(c => c.visible).map(c => `${c.key}:${c.label}`).join(',');
-    return `${lb.font_size}|${headerFontSize}|${cols}`;
+    return `${lb.font_size}|${headerFontSize}|${lb.row_height}|${lb.cell_padding_v}|${cols}`;
   }
 
   // Maps each config column key to the matching field name in the /api/state
@@ -418,6 +434,12 @@ _OVERLAY_HTML = """<!DOCTYPE html>
 
     body.style.setProperty('--row-separator',
         lb.row_separator === 'line' ? '1px solid rgba(255,255,255,0.1)' : 'none');
+    body.style.setProperty('--header-text-transform', lb.header_text_transform || 'uppercase');
+    body.style.setProperty('--header-font-weight',    lb.header_font_weight    || 'normal');
+    body.style.setProperty('--row-height',            (lb.row_height           ?? 54) + 'px');
+    body.style.setProperty('--cell-padding-v',        (lb.cell_padding_v       ?? 4)  + 'px');
+    body.style.setProperty('--cell-padding-h',        (lb.cell_padding_h       ?? 6)  + 'px');
+    body.style.setProperty('--panel-border-radius',   (lb.panel_border_radius  ?? 0)  + 'px');
 
     // --- Bottom bar ---
     body.style.setProperty('--bottom-bar-opacity',      bb.opacity);
@@ -452,7 +474,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
       col.key === 'name' ? '<td class="name">x</td>' : '<td>0</td>'
     ).join('');
     tbody.appendChild(test);
-    const rowH = test.offsetHeight || 54;  // 54px matches the CSS row height
+    const rowH = test.offsetHeight || currentConfig?.leaderboard?.row_height || 54;
     tbody.removeChild(test);
     return Math.max(1, Math.floor(available / rowH));
   }
@@ -626,8 +648,16 @@ _CONFIG_HTML = """<!DOCTYPE html>
       <input type="checkbox" id="lb_enabled"> Leaderboard
     </summary>
     <div class="details-body">
-      <label for="lb_panel_width">Panel width (px)</label>
-      <input type="number" id="lb_panel_width" min="100" max="800">
+      <div class="field-pair">
+        <div>
+          <label for="lb_panel_width">Panel width (px)</label>
+          <input type="number" id="lb_panel_width" min="100" max="800">
+        </div>
+        <div>
+          <label for="lb_panel_border_radius">Border radius (px)</label>
+          <input type="number" id="lb_panel_border_radius" min="0" max="100">
+        </div>
+      </div>
       <div class="field-pair">
         <div>
           <label for="lb_font_size">Font size (px)</label>
@@ -636,6 +666,23 @@ _CONFIG_HTML = """<!DOCTYPE html>
         <div>
           <label for="lb_font_colour">Font colour</label>
           <input type="color" id="lb_font_colour">
+        </div>
+      </div>
+
+      <div class="field-pair">
+        <div>
+          <label for="hdr_text_transform">Header text transform</label>
+          <select id="hdr_text_transform">
+            <option value="uppercase">Uppercase</option>
+            <option value="none">None</option>
+          </select>
+        </div>
+        <div>
+          <label for="hdr_font_weight">Header font weight</label>
+          <select id="hdr_font_weight">
+            <option value="normal">Normal</option>
+            <option value="bold">Bold</option>
+          </select>
         </div>
       </div>
 
@@ -709,6 +756,19 @@ _CONFIG_HTML = """<!DOCTYPE html>
             <option value="none">None</option>
             <option value="line">Line</option>
           </select>
+
+          <label for="lb_row_height" style="margin-top:8px">Row height (px)</label>
+          <input type="number" id="lb_row_height" min="20" max="200">
+          <div class="field-pair">
+            <div>
+              <label for="lb_cell_padding_v">Cell padding vertical (px)</label>
+              <input type="number" id="lb_cell_padding_v" min="0" max="40">
+            </div>
+            <div>
+              <label for="lb_cell_padding_h">Cell padding horizontal (px)</label>
+              <input type="number" id="lb_cell_padding_h" min="0" max="40">
+            </div>
+          </div>
         </div>
       </details>
 
@@ -830,11 +890,14 @@ _CONFIG_HTML = """<!DOCTYPE html>
     sel.value = match ? cfg.global.font_family : sel.options[0].value;
 
     // Leaderboard
-    document.getElementById('lb_enabled').checked          = cfg.leaderboard.enabled;
-    document.getElementById('lb_panel_width').value        = cfg.leaderboard.panel_width;
-    document.getElementById('lb_opacity').value            = cfg.leaderboard.opacity;
-    document.getElementById('lb_font_size').value          = cfg.leaderboard.font_size;
-    document.getElementById('lb_font_colour').value        = cfg.leaderboard.font_colour;
+    document.getElementById('lb_enabled').checked               = cfg.leaderboard.enabled;
+    document.getElementById('lb_panel_width').value             = cfg.leaderboard.panel_width;
+    document.getElementById('lb_panel_border_radius').value     = cfg.leaderboard.panel_border_radius;
+    document.getElementById('lb_opacity').value                 = cfg.leaderboard.opacity;
+    document.getElementById('lb_font_size').value               = cfg.leaderboard.font_size;
+    document.getElementById('lb_font_colour').value             = cfg.leaderboard.font_colour;
+    document.getElementById('hdr_text_transform').value         = cfg.leaderboard.header_text_transform;
+    document.getElementById('hdr_font_weight').value            = cfg.leaderboard.header_font_weight;
 
     // Header override
     document.getElementById('hdr_override_enabled').checked = cfg.leaderboard.header_font_override.enabled;
@@ -849,9 +912,12 @@ _CONFIG_HTML = """<!DOCTYPE html>
     document.getElementById('row_bg_alt_opacity').value    = cfg.leaderboard.row_background_alt.opacity;
     document.getElementById('row_bg_alt_colour').value     = cfg.leaderboard.row_background_alt.colour;
 
-    // Row separator
+    // Row separator and sizing
     document.getElementById('row_separator').value              = cfg.leaderboard.row_separator;
     document.getElementById('lb_show_session_label').checked    = cfg.leaderboard.show_session_label;
+    document.getElementById('lb_row_height').value              = cfg.leaderboard.row_height;
+    document.getElementById('lb_cell_padding_v').value          = cfg.leaderboard.cell_padding_v;
+    document.getElementById('lb_cell_padding_h').value          = cfg.leaderboard.cell_padding_h;
 
     // Columns
     buildColumnRows(cfg.leaderboard.columns);
@@ -922,11 +988,14 @@ _CONFIG_HTML = """<!DOCTYPE html>
         font_family: document.getElementById('font_family').value,
       },
       leaderboard: {
-        enabled:     document.getElementById('lb_enabled').checked,
-        panel_width: numVal('lb_panel_width', currentCfg.leaderboard.panel_width),
-        opacity:     numVal('lb_opacity', currentCfg.leaderboard.opacity),
-        font_size:   numVal('lb_font_size', currentCfg.leaderboard.font_size),
-        font_colour: document.getElementById('lb_font_colour').value,
+        enabled:              document.getElementById('lb_enabled').checked,
+        panel_width:          numVal('lb_panel_width',          currentCfg.leaderboard.panel_width),
+        panel_border_radius:  numVal('lb_panel_border_radius',  currentCfg.leaderboard.panel_border_radius),
+        opacity:              numVal('lb_opacity',              currentCfg.leaderboard.opacity),
+        font_size:            numVal('lb_font_size',            currentCfg.leaderboard.font_size),
+        font_colour:          document.getElementById('lb_font_colour').value,
+        header_text_transform: document.getElementById('hdr_text_transform').value,
+        header_font_weight:    document.getElementById('hdr_font_weight').value,
         header_font_override: {
           enabled:     document.getElementById('hdr_override_enabled').checked,
           font_size:   numVal('hdr_font_size',   currentCfg.leaderboard.header_font_override.font_size),
@@ -942,6 +1011,9 @@ _CONFIG_HTML = """<!DOCTYPE html>
         },
         row_separator:      document.getElementById('row_separator').value,
         show_session_label: document.getElementById('lb_show_session_label').checked,
+        row_height:         numVal('lb_row_height',       currentCfg.leaderboard.row_height),
+        cell_padding_v:     numVal('lb_cell_padding_v',   currentCfg.leaderboard.cell_padding_v),
+        cell_padding_h:     numVal('lb_cell_padding_h',   currentCfg.leaderboard.cell_padding_h),
         columns,
       },
       bottom_bar: {
@@ -979,10 +1051,12 @@ _CONFIG_HTML = """<!DOCTYPE html>
 
   [
     'font_family',
-    'lb_enabled', 'lb_panel_width', 'lb_opacity', 'lb_font_size', 'lb_font_colour',
+    'lb_enabled', 'lb_panel_width', 'lb_panel_border_radius', 'lb_opacity', 'lb_font_size', 'lb_font_colour',
+    'hdr_text_transform', 'hdr_font_weight',
     'hdr_override_enabled', 'hdr_font_size', 'hdr_font_colour', 'hdr_bg_opacity', 'hdr_bg_colour',
     'row_bg_colour', 'row_bg_alt_enabled', 'row_bg_alt_opacity', 'row_bg_alt_colour',
     'row_separator', 'lb_show_session_label',
+    'lb_row_height', 'lb_cell_padding_v', 'lb_cell_padding_h',
     'bb_enabled', 'bb_opacity', 'bb_font_size', 'bb_font_colour',
   ].forEach(id => document.getElementById(id).addEventListener('change', autoSave));
 
