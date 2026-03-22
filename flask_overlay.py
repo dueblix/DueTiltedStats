@@ -42,6 +42,8 @@ DEFAULT_CONFIG = {
             "enabled": False,
             "font_size": 40,
             "font_colour": "#ffffff",
+            "bg_colour": "#000000",
+            "bg_opacity": 0.80,
         },
         "opacity": 0.60,
         "row_background_colour": "#1a1a1a",
@@ -192,7 +194,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   }
 
   #leaderboard thead tr {
-    background: rgba(0, 0, 0, var(--panel-opacity));
+    background: var(--header-bg);
   }
 
   #leaderboard thead th {
@@ -405,6 +407,11 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     body.style.setProperty('--row-bg',     hexToRgba(rowBg,  lb.opacity));
     body.style.setProperty('--row-bg-alt', hexToRgba(altHex, lb.opacity));
 
+    // --- Header background ---
+    const hdrBgHex     = hdr.enabled ? (hdr.bg_colour  || '#000000') : rowBg;
+    const hdrBgOpacity = hdr.enabled ? (hdr.bg_opacity ?? lb.opacity) : lb.opacity;
+    body.style.setProperty('--header-bg', hexToRgba(hdrBgHex, hdrBgOpacity));
+
     body.style.setProperty('--row-separator',
         lb.row_separator === 'line' ? '1px solid rgba(255,255,255,0.1)' : 'none');
 
@@ -612,16 +619,8 @@ _CONFIG_HTML = """<!DOCTYPE html>
       <input type="checkbox" id="lb_enabled"> Leaderboard
     </summary>
     <div class="details-body">
-      <div class="field-pair">
-        <div>
-          <label for="lb_panel_width">Panel width (px)</label>
-          <input type="number" id="lb_panel_width" min="100" max="800">
-        </div>
-        <div>
-          <label for="lb_opacity">Opacity (0–1)</label>
-          <input type="number" id="lb_opacity" min="0" max="1" step="0.05">
-        </div>
-      </div>
+      <label for="lb_panel_width">Panel width (px)</label>
+      <input type="number" id="lb_panel_width" min="100" max="800">
       <div class="field-pair">
         <div>
           <label for="lb_font_size">Font size (px)</label>
@@ -633,20 +632,30 @@ _CONFIG_HTML = """<!DOCTYPE html>
         </div>
       </div>
 
-      <!-- Header font override -->
+      <!-- Header override -->
       <details id="sec-header-override">
         <summary>
-          <input type="checkbox" id="hdr_override_enabled"> Header font override
+          <input type="checkbox" id="hdr_override_enabled"> Header override
         </summary>
         <div class="details-body">
           <div class="field-pair">
             <div>
-              <label for="hdr_font_size">Header font size (px)</label>
+              <label for="hdr_font_size">Font size (px)</label>
               <input type="number" id="hdr_font_size" min="8" max="120">
             </div>
             <div>
-              <label for="hdr_font_colour">Header font colour</label>
+              <label for="hdr_font_colour">Font colour</label>
               <input type="color" id="hdr_font_colour">
+            </div>
+          </div>
+          <div class="field-pair">
+            <div>
+              <label for="hdr_bg_colour">Background colour</label>
+              <input type="color" id="hdr_bg_colour">
+            </div>
+            <div>
+              <label for="hdr_bg_opacity">Opacity (0–1)</label>
+              <input type="number" id="hdr_bg_opacity" min="0" max="1" step="0.05">
             </div>
           </div>
         </div>
@@ -656,9 +665,15 @@ _CONFIG_HTML = """<!DOCTYPE html>
       <details id="sec-rows">
         <summary>Row appearance</summary>
         <div class="details-body">
-          <div class="inline-row">
-            <label for="row_bg_colour" style="margin:0">Row background colour</label>
-            <input type="color" id="row_bg_colour">
+          <div class="field-pair">
+            <div>
+              <label for="row_bg_colour">Row background colour</label>
+              <input type="color" id="row_bg_colour">
+            </div>
+            <div>
+              <label for="lb_opacity">Opacity (0–1)</label>
+              <input type="number" id="lb_opacity" min="0" max="1" step="0.05">
+            </div>
           </div>
 
           <details id="sec-alt-colour">
@@ -807,10 +822,12 @@ _CONFIG_HTML = """<!DOCTYPE html>
     document.getElementById('lb_font_size').value          = cfg.leaderboard.font_size;
     document.getElementById('lb_font_colour').value        = cfg.leaderboard.font_colour;
 
-    // Header font override
+    // Header override
     document.getElementById('hdr_override_enabled').checked = cfg.leaderboard.header_font_override.enabled;
     document.getElementById('hdr_font_size').value           = cfg.leaderboard.header_font_override.font_size;
     document.getElementById('hdr_font_colour').value         = cfg.leaderboard.header_font_override.font_colour;
+    document.getElementById('hdr_bg_colour').value           = cfg.leaderboard.header_font_override.bg_colour;
+    document.getElementById('hdr_bg_opacity').value          = cfg.leaderboard.header_font_override.bg_opacity;
 
     // Row background
     document.getElementById('row_bg_colour').value         = cfg.leaderboard.row_background_colour;
@@ -892,9 +909,11 @@ _CONFIG_HTML = """<!DOCTYPE html>
         font_size:   numVal('lb_font_size', currentCfg.leaderboard.font_size),
         font_colour: document.getElementById('lb_font_colour').value,
         header_font_override: {
-          enabled:    document.getElementById('hdr_override_enabled').checked,
-          font_size:  numVal('hdr_font_size', currentCfg.leaderboard.header_font_override.font_size),
+          enabled:     document.getElementById('hdr_override_enabled').checked,
+          font_size:   numVal('hdr_font_size',   currentCfg.leaderboard.header_font_override.font_size),
           font_colour: document.getElementById('hdr_font_colour').value,
+          bg_colour:   document.getElementById('hdr_bg_colour').value,
+          bg_opacity:  numVal('hdr_bg_opacity',  currentCfg.leaderboard.header_font_override.bg_opacity),
         },
         row_background_colour: document.getElementById('row_bg_colour').value,
         row_background_alt: {
