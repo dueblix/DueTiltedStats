@@ -592,7 +592,6 @@ _CONFIG_HTML = """<!DOCTYPE html>
   .move-btn:hover { background: #e8e8e8; }
   .actions { margin-top: 24px; display: flex; gap: 12px; align-items: center; }
   button { padding: 8px 20px; cursor: pointer; }
-  #save-btn { background: #2a7; color: #fff; border: none; border-radius: 4px; }
   #reset-btn { background: none; border: 1px solid #aaa; border-radius: 4px; }
   #msg { color: green; font-size: 0.9em; }
   .note { margin-top: 8px; font-size: 0.85em; color: #666; }
@@ -741,7 +740,6 @@ _CONFIG_HTML = """<!DOCTYPE html>
   </details>
 
   <div class="actions">
-    <button type="submit" id="save-btn">Save</button>
     <button type="button" id="reset-btn">Reset to defaults</button>
     <span id="msg"></span>
   </div>
@@ -878,7 +876,9 @@ _CONFIG_HTML = """<!DOCTYPE html>
       labelInput.dataset.savedLabel = col.label;
       labelInput.addEventListener('blur', function() {
         if (this.value.trim() === '') this.value = this.dataset.savedLabel;
+        autoSave();
       });
+      row.querySelector('input[type=checkbox]').addEventListener('change', autoSave);
       list.appendChild(row);
     }
   }
@@ -891,6 +891,7 @@ _CONFIG_HTML = """<!DOCTYPE html>
     if (target < 0 || target >= rows.length) return;
     if (dir === -1) list.insertBefore(rows[idx], rows[target]);
     else            list.insertBefore(rows[target], rows[idx]);
+    autoSave();
   }
 
   function numVal(id, fallback) {
@@ -945,15 +946,9 @@ _CONFIG_HTML = """<!DOCTYPE html>
     };
   }
 
-  document.getElementById('cfg-form').addEventListener('submit', async e => {
-    e.preventDefault();
+  async function autoSave() {
+    if (!currentCfg) return;
     const msg = document.getElementById('msg');
-    msg.textContent = '';
-    if (!currentCfg) {
-      msg.style.color = 'red';
-      msg.textContent = 'Config not loaded. Refresh the page.';
-      return;
-    }
     try {
       const resp = await fetch('/api/config', {
         method: 'POST',
@@ -962,19 +957,27 @@ _CONFIG_HTML = """<!DOCTYPE html>
       });
       if (resp.ok) {
         currentCfg = await resp.json();
-        populateForm(currentCfg);
         msg.style.color = 'green';
-        msg.textContent = 'Saved!';
-        setTimeout(() => { msg.textContent = ''; }, 3000);
+        msg.textContent = 'Saved';
+        setTimeout(() => { msg.textContent = ''; }, 2000);
       } else {
         msg.style.color = 'red';
-        msg.textContent = 'Save failed.';
+        msg.textContent = 'Save failed';
       }
     } catch (_) {
       msg.style.color = 'red';
-      msg.textContent = 'Save failed (network error).';
+      msg.textContent = 'Save failed (network error)';
     }
-  });
+  }
+
+  [
+    'font_family',
+    'lb_enabled', 'lb_panel_width', 'lb_opacity', 'lb_font_size', 'lb_font_colour',
+    'hdr_override_enabled', 'hdr_font_size', 'hdr_font_colour', 'hdr_bg_opacity', 'hdr_bg_colour',
+    'row_bg_colour', 'row_bg_alt_enabled', 'row_bg_alt_opacity', 'row_bg_alt_colour',
+    'row_separator', 'lb_show_session_label',
+    'bb_enabled', 'bb_opacity', 'bb_font_size', 'bb_font_colour',
+  ].forEach(id => document.getElementById(id).addEventListener('change', autoSave));
 
   document.getElementById('reset-btn').addEventListener('click', async () => {
     try {
@@ -982,6 +985,7 @@ _CONFIG_HTML = """<!DOCTYPE html>
       if (resp.ok) {
         currentCfg = await resp.json();
         populateForm(currentCfg);
+        autoSave();
       }
     } catch (_) {
       // silently ignore — form stays as-is on network error
@@ -1005,6 +1009,7 @@ _CONFIG_HTML = """<!DOCTYPE html>
     const primary = document.getElementById('row_bg_colour').value;
     document.getElementById('row_bg_alt_colour').value  = deriveAltColour(primary);
     document.getElementById('row_bg_alt_opacity').value = document.getElementById('lb_opacity').value;
+    autoSave();
   });
 
   document.getElementById('font_filter').addEventListener('input', function() {
