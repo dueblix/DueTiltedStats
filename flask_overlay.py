@@ -51,6 +51,7 @@ DEFAULT_CONFIG = {
             "colour": "#2a2a2a",
         },
         "row_separator": "none",
+        "show_session_label": True,
         "columns": [
             {"key": "points",   "label": "P", "visible": True},
             {"key": "survived", "label": "S", "visible": True},
@@ -192,7 +193,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
   }
 
   #leaderboard thead tr {
-    background: rgba(0, 0, 0, 0.80);
+    background: rgba(0, 0, 0, var(--panel-opacity));
   }
 
   #leaderboard thead th {
@@ -356,6 +357,14 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
   }
 
+  function hexToRgba(hex, alpha) {
+    if (!hex || hex.length < 7) return `rgba(0,0,0,${alpha})`;
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+
   async function applyConfig() {
     let cfg;
     try {
@@ -392,17 +401,17 @@ _OVERLAY_HTML = """<!DOCTYPE html>
 
     // --- Row backgrounds ---
     const rowBg = lb.row_background_colour;
-    body.style.setProperty('--row-bg', rowBg);
     const altCfg = lb.row_background_alt || {};
-    let altBg;
+    let altHex;
     if (lb.row_background === 'solid') {
-      altBg = rowBg;                          // no alternation
+      altHex = rowBg;                         // no alternation
     } else if (altCfg.enabled) {
-      altBg = altCfg.colour;                  // explicit alt colour
+      altHex = altCfg.colour;                 // explicit alt colour
     } else {
-      altBg = deriveAltColour(rowBg);         // auto-derived from primary
+      altHex = deriveAltColour(rowBg);        // auto-derived from primary
     }
-    body.style.setProperty('--row-bg-alt', altBg);
+    body.style.setProperty('--row-bg',     hexToRgba(rowBg,  lb.opacity));
+    body.style.setProperty('--row-bg-alt', hexToRgba(altHex, lb.opacity));
 
     body.style.setProperty('--row-separator',
         lb.row_separator === 'line' ? '1px solid rgba(255,255,255,0.1)' : 'none');
@@ -485,8 +494,9 @@ _OVERLAY_HTML = """<!DOCTYPE html>
       return;
     }
 
+    const showLabel = currentConfig?.leaderboard?.show_session_label !== false;
     statusDiv.textContent   = data.status === 'idle' ? 'PREVIOUS SESSION' : '';
-    statusDiv.style.display = data.status === 'idle' ? 'block' : 'none';
+    statusDiv.style.display = data.status === 'idle' && showLabel ? 'block' : 'none';
 
     // --- Bottom bar ---
     // bottom_bar.enabled is gated by BOTH config AND game state: only show when
@@ -679,6 +689,11 @@ _CONFIG_HTML = """<!DOCTYPE html>
         <option value="line">Line</option>
       </select>
 
+      <div class="inline-row" style="margin-top:8px">
+        <input type="checkbox" id="lb_show_session_label">
+        <label for="lb_show_session_label" style="margin:0">Show "Previous Session" label</label>
+      </div>
+
       <label style="margin-top:12px">Columns</label>
       <div id="columns-list"></div>
     </div>
@@ -811,7 +826,8 @@ _CONFIG_HTML = """<!DOCTYPE html>
     document.getElementById('row_bg_alt_colour').value     = cfg.leaderboard.row_background_alt.colour;
 
     // Row separator
-    document.getElementById('row_separator').value         = cfg.leaderboard.row_separator;
+    document.getElementById('row_separator').value              = cfg.leaderboard.row_separator;
+    document.getElementById('lb_show_session_label').checked    = cfg.leaderboard.show_session_label;
 
     // Columns
     buildColumnRows(cfg.leaderboard.columns);
@@ -894,7 +910,8 @@ _CONFIG_HTML = """<!DOCTYPE html>
           enabled: document.getElementById('row_bg_alt_enabled').checked,
           colour:  document.getElementById('row_bg_alt_colour').value,
         },
-        row_separator: document.getElementById('row_separator').value,
+        row_separator:      document.getElementById('row_separator').value,
+        show_session_label: document.getElementById('lb_show_session_label').checked,
         columns,
       },
       bottom_bar: {
