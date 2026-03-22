@@ -290,9 +290,7 @@ _OVERLAY_HTML = """<!DOCTYPE html>
     <div id="status">Waiting for game...</div>
     <table id="leaderboard">
       <thead>
-        <tr id="lb-head">
-          <th class="name">Player</th>
-        </tr>
+        <tr id="lb-head"></tr>
       </thead>
       <tbody id="lb-body"></tbody>
     </table>
