@@ -839,6 +839,7 @@ _CONFIG_HTML = """<!DOCTYPE html>
     {label: "Exo 2",            value: "'Exo 2', sans-serif",              category: "Condensed"},
     {label: "Bebas Neue",       value: "'Bebas Neue', sans-serif",         category: "Condensed"},
     // Sans-serif
+    {label: "Arial",            value: "Arial, sans-serif",                category: "Sans-serif"},
     {label: "Roboto",           value: "Roboto, sans-serif",               category: "Sans-serif"},
     {label: "Inter",            value: "Inter, sans-serif",                category: "Sans-serif"},
     {label: "Lato",             value: "Lato, sans-serif",                 category: "Sans-serif"},
