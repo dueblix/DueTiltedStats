@@ -667,12 +667,12 @@ _CONFIG_HTML = """<!DOCTYPE html>
         <div class="details-body">
           <div class="field-pair">
             <div>
-              <label for="row_bg_colour">Row background colour</label>
-              <input type="color" id="row_bg_colour">
-            </div>
-            <div>
               <label for="lb_opacity">Opacity (0–1)</label>
               <input type="number" id="lb_opacity" min="0" max="1" step="0.05">
+            </div>
+            <div>
+              <label for="row_bg_colour">Row background colour</label>
+              <input type="color" id="row_bg_colour">
             </div>
           </div>
 
