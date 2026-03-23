@@ -298,3 +298,8 @@ def test_api_config_post_returns_500_on_save_failure(client, monkeypatch):
 def test_config_page_returns_200(client):
     resp = client.get("/config")
     assert resp.status_code == 200
+
+
+def test_overlay_page_returns_200(client):
+    resp = client.get("/overlay")
+    assert resp.status_code == 200

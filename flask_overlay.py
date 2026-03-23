@@ -138,7 +138,6 @@ def save_config(config: dict, path: str | None = None) -> None:
     os.replace(tmp, p)  # atomic on both POSIX and Windows
 
 
-
 # ---------------------------------------------------------------------------
 # Flask app factory
 # ---------------------------------------------------------------------------
