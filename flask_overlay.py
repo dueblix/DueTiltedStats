@@ -20,7 +20,7 @@ import os
 import sys
 import tempfile
 
-from flask import Flask, Response, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request
 
 import db
 
