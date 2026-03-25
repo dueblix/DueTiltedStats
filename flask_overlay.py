@@ -74,6 +74,7 @@ DEFAULT_CONFIG = {
         "font_colour": "#ffffff",
         "opacity": 0.75,
     },
+    "player_colours": {},
 }
 
 
@@ -184,6 +185,9 @@ def create_app(watcher, db_path: str, config_path: str | None = None) -> Flask:
         # Only merge known top-level keys
         known = {k: v for k, v in payload.items() if k in DEFAULT_CONFIG}
         merged = _deep_merge(current, known)
+        # player_colours is a flat name→hex mapping: replace entirely so deletions take effect
+        if "player_colours" in known and isinstance(known["player_colours"], dict):
+            merged["player_colours"] = copy.deepcopy(known["player_colours"])
         try:
             save_config(merged, path=_cfg_path)
         except OSError as exc:
@@ -227,6 +231,7 @@ def create_app(watcher, db_path: str, config_path: str | None = None) -> Flask:
                 "top_tiltee_username": summary["top_tiltee_username"],
             }
 
+        player_colours = get_config(path=_cfg_path).get("player_colours", {})
         players = [
             {
                 "username":        row["username"],
@@ -234,9 +239,8 @@ def create_app(watcher, db_path: str, config_path: str | None = None) -> Flask:
                 "levels_played":   row["levels_played"],
                 "levels_survived": row["levels_survived"],
                 "exp_earned":      row["exp_earned"],
-                "colour":          _rgba_to_css(
-                    watcher.colours.get(row["display_name"])
-                ),
+                "colour":          player_colours.get(row["display_name"])
+                                   or _rgba_to_css(watcher.colours.get(row["display_name"])),
             }
             for row in leaderboard
         ]

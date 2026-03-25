@@ -32,6 +32,12 @@
   #msg { color: green; font-size: 0.9em; }
   .note { margin-top: 8px; font-size: 0.85em; color: #666; }
   a { color: #26a; }
+  .pc-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+  .pc-name { flex: 1; padding: 4px 6px; font-size: 0.9em; }
+  .pc-remove { padding: 2px 8px; font-size: 0.9em; cursor: pointer; border: 1px solid #ccc; border-radius: 3px; background: #f8f8f8; }
+  .pc-remove:hover { background: #fdd; }
+  #add-player-colour-btn { margin-top: 8px; padding: 4px 12px; font-size: 0.9em; cursor: pointer; border: 1px solid #aaa; border-radius: 3px; background: #f8f8f8; }
+  #add-player-colour-btn:hover { background: #e8e8e8; }
 </style>
 </head>
 <body>
@@ -218,6 +224,16 @@
     </div>
   </details>
 
+  <!-- Player colours -->
+  <details id="sec-player-colours">
+    <summary>Player colours</summary>
+    <div class="details-body">
+      <p class="note">Override the name colour for specific players. Use the player's display name exactly as it appears in the overlay.</p>
+      <div id="player-colours-list"></div>
+      <button type="button" id="add-player-colour-btn">+ Add player</button>
+    </div>
+  </details>
+
   <div class="actions">
     <button type="button" id="reset-btn">Reset to defaults</button>
     <span id="msg"></span>
@@ -341,6 +357,47 @@
     document.getElementById('bb_opacity').value     = cfg.bottom_bar.opacity;
     document.getElementById('bb_font_size').value   = cfg.bottom_bar.font_size;
     document.getElementById('bb_font_colour').value = cfg.bottom_bar.font_colour;
+
+    // Player colours
+    buildPlayerColourRows(cfg.player_colours || {});
+  }
+
+  function buildPlayerColourRows(playerColours) {
+    document.getElementById('player-colours-list').innerHTML = '';
+    for (const [name, colour] of Object.entries(playerColours)) {
+      addPlayerColourRow(name, colour);
+    }
+  }
+
+  function addPlayerColourRow(name = '', colour = '#ffffff') {
+    const list = document.getElementById('player-colours-list');
+    const row = document.createElement('div');
+    row.className = 'pc-row';
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'pc-name';
+    nameInput.placeholder = 'Display name';
+    nameInput.value = name;
+
+    const colourInput = document.createElement('input');
+    colourInput.type = 'color';
+    colourInput.className = 'pc-colour';
+    colourInput.value = colour;
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'pc-remove';
+    removeBtn.textContent = '✕';
+
+    nameInput.addEventListener('blur', autoSave);
+    colourInput.addEventListener('change', autoSave);
+    removeBtn.addEventListener('click', () => { row.remove(); autoSave(); });
+
+    row.appendChild(nameInput);
+    row.appendChild(colourInput);
+    row.appendChild(removeBtn);
+    list.appendChild(row);
   }
 
   function buildColumnRows(columns) {
@@ -436,7 +493,18 @@
         font_size:  numVal('bb_font_size', currentCfg.bottom_bar.font_size),
         font_colour: document.getElementById('bb_font_colour').value,
       },
+      player_colours: collectPlayerColours(),
     };
+  }
+
+  function collectPlayerColours() {
+    const result = {};
+    for (const row of document.querySelectorAll('#player-colours-list .pc-row')) {
+      const name = row.querySelector('.pc-name').value.trim();
+      const colour = row.querySelector('.pc-colour').value;
+      if (name) result[name] = colour;
+    }
+    return result;
   }
 
   async function autoSave() {
@@ -505,6 +573,10 @@
     document.getElementById('row_bg_alt_colour').value  = deriveAltColour(primary);
     document.getElementById('row_bg_alt_opacity').value = document.getElementById('lb_opacity').value;
     autoSave();
+  });
+
+  document.getElementById('add-player-colour-btn').addEventListener('click', () => {
+    addPlayerColourRow();
   });
 
   document.getElementById('font_filter').addEventListener('input', function() {

@@ -7,6 +7,7 @@ import sys
 
 import pytest
 
+import db
 from flask_overlay import get_app_dir, get_config, save_config, DEFAULT_CONFIG, _deep_merge
 
 
@@ -308,3 +309,50 @@ def test_overlay_page_returns_200(client):
 def test_history_page_returns_200(client):
     resp = client.get("/history")
     assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Player colours
+# ---------------------------------------------------------------------------
+
+def test_default_config_has_player_colours():
+    assert "player_colours" in DEFAULT_CONFIG
+    assert DEFAULT_CONFIG["player_colours"] == {}
+
+
+def test_api_config_post_player_colours_replaces_not_merges(client):
+    """Posting player_colours should replace the whole dict, not merge into it."""
+    client.post("/api/config", json={"player_colours": {"Alice": "#ff0000"}})
+    client.post("/api/config", json={"player_colours": {"Bob": "#0000ff"}})
+    data = client.get("/api/config").get_json()
+    assert "Bob" in data["player_colours"]
+    assert "Alice" not in data["player_colours"]
+
+
+def test_api_state_uses_player_colour_override(client_and_db):
+    c, db_path = client_and_db
+    with db.get_conn(db_path) as conn:
+        sid = db.insert_session(conn, "testuser", "2024-01-01T00:00:00")
+        rid = db.insert_run(conn, "testuser", "2024-01-01T00:00:00")
+        lid = db.insert_level(conn, rid, sid, 1, 30.0, "2024-01-01T00:01:00", 100, True, None)
+        db.insert_player_levels(conn, lid, [
+            {"username": "alice", "display_name": "Alice", "survived": True}
+        ])
+    c.post("/api/config", json={"player_colours": {"Alice": "#abcdef"}})
+    data = c.get("/api/state").get_json()
+    assert data["run_leaderboard"][0]["colour"] == "#abcdef"
+
+
+def test_api_state_falls_back_to_watcher_colour(client_and_db):
+    """When no override is set, the watcher colour is used."""
+    c, db_path = client_and_db
+    with db.get_conn(db_path) as conn:
+        sid = db.insert_session(conn, "testuser", "2024-01-01T00:00:00")
+        rid = db.insert_run(conn, "testuser", "2024-01-01T00:00:00")
+        lid = db.insert_level(conn, rid, sid, 1, 30.0, "2024-01-01T00:01:00", 100, True, None)
+        db.insert_player_levels(conn, lid, [
+            {"username": "alice", "display_name": "Alice", "survived": True}
+        ])
+    data = c.get("/api/state").get_json()
+    # _StubWatcher.colours is {}, so _rgba_to_css(None) → "rgba(255,255,255,1)"
+    assert data["run_leaderboard"][0]["colour"] == "rgba(255,255,255,1)"
