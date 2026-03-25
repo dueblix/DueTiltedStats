@@ -178,3 +178,82 @@ class TestLeaderboard:
         conn = make_conn()
         sid, rid, _ = self._setup(conn)
         assert db.get_last_run_id_in_session(conn, sid) == rid
+
+
+# ---------------------------------------------------------------------------
+# History queries
+# ---------------------------------------------------------------------------
+
+class TestHistoryQueries:
+    def _closed_session(self, conn, username="streamer1",
+                        started="2024-01-01T00:00:00", ended="2024-01-01T01:00:00"):
+        sid = db.insert_session(conn, username, started)
+        db.close_session(conn, sid, ended)
+        return sid
+
+    def test_get_all_closed_sessions_returns_only_closed(self):
+        conn = make_conn()
+        sid = self._closed_session(conn)
+        db.insert_session(conn, "streamer1", "2024-01-02T00:00:00")  # open
+        rows = db.get_all_closed_sessions(conn, "streamer1")
+        assert len(rows) == 1
+        assert rows[0]["id"] == sid
+
+    def test_get_all_closed_sessions_ordered_newest_first(self):
+        conn = make_conn()
+        sid1 = self._closed_session(conn, started="2024-01-01T00:00:00", ended="2024-01-01T01:00:00")
+        sid2 = self._closed_session(conn, started="2024-01-02T00:00:00", ended="2024-01-02T01:00:00")
+        rows = db.get_all_closed_sessions(conn, "streamer1")
+        assert rows[0]["id"] == sid2
+        assert rows[1]["id"] == sid1
+
+    def test_get_all_closed_sessions_empty(self):
+        conn = make_conn()
+        assert db.get_all_closed_sessions(conn, "streamer1") == []
+
+    def test_get_all_closed_sessions_excludes_other_streamer(self):
+        conn = make_conn()
+        self._closed_session(conn, username="other")
+        assert db.get_all_closed_sessions(conn, "streamer1") == []
+
+    def test_get_session_top_tiltees_counts_correctly(self):
+        conn = make_conn()
+        sid = db.insert_session(conn, "streamer1", "2024-01-01T00:00:00")
+        rid = db.insert_run(conn, "streamer1", "2024-01-01T00:00:00")
+        db.insert_level(conn, rid, sid, 1, 30.0, "2024-01-01T00:01:00", 100, True, "alice")
+        db.insert_level(conn, rid, sid, 2, 30.0, "2024-01-01T00:02:00", 100, True, "alice")
+        db.insert_level(conn, rid, sid, 3, 30.0, "2024-01-01T00:03:00", 100, True, "bob")
+        counts = {r["top_tiltee_username"]: r["tiltee_count"]
+                  for r in db.get_session_top_tiltees(conn, sid)}
+        assert counts["alice"] == 2
+        assert counts["bob"] == 1
+
+    def test_get_session_top_tiltees_ordered_by_count(self):
+        conn = make_conn()
+        sid = db.insert_session(conn, "streamer1", "2024-01-01T00:00:00")
+        rid = db.insert_run(conn, "streamer1", "2024-01-01T00:00:00")
+        db.insert_level(conn, rid, sid, 1, 30.0, "2024-01-01T00:01:00", 100, True, "alice")
+        db.insert_level(conn, rid, sid, 2, 30.0, "2024-01-01T00:02:00", 100, True, "alice")
+        db.insert_level(conn, rid, sid, 3, 30.0, "2024-01-01T00:03:00", 100, True, "bob")
+        rows = db.get_session_top_tiltees(conn, sid)
+        assert rows[0]["top_tiltee_username"] == "alice"
+
+    def test_get_session_top_tiltees_ignores_null(self):
+        conn = make_conn()
+        sid = db.insert_session(conn, "streamer1", "2024-01-01T00:00:00")
+        rid = db.insert_run(conn, "streamer1", "2024-01-01T00:00:00")
+        db.insert_level(conn, rid, sid, 1, 30.0, "2024-01-01T00:01:00", 100, True, None)
+        assert db.get_session_top_tiltees(conn, sid) == []
+
+    def test_get_session_level_count(self):
+        conn = make_conn()
+        sid = db.insert_session(conn, "streamer1", "2024-01-01T00:00:00")
+        rid = db.insert_run(conn, "streamer1", "2024-01-01T00:00:00")
+        db.insert_level(conn, rid, sid, 1, 30.0, "2024-01-01T00:01:00", 100, True, None)
+        db.insert_level(conn, rid, sid, 2, 30.0, "2024-01-01T00:02:00", 100, True, None)
+        assert db.get_session_level_count(conn, sid) == 2
+
+    def test_get_session_level_count_empty_session(self):
+        conn = make_conn()
+        sid = db.insert_session(conn, "streamer1", "2024-01-01T00:00:00")
+        assert db.get_session_level_count(conn, sid) == 0

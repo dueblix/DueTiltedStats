@@ -303,3 +303,8 @@ def test_config_page_returns_200(client):
 def test_overlay_page_returns_200(client):
     resp = client.get("/overlay")
     assert resp.status_code == 200
+
+
+def test_history_page_returns_200(client):
+    resp = client.get("/history")
+    assert resp.status_code == 200

@@ -263,6 +263,37 @@ def get_last_recorded_level(conn: sqlite3.Connection, streamer_username: str) ->
     ).fetchone()
 
 
+def get_all_closed_sessions(conn: sqlite3.Connection, streamer_username: str) -> list[sqlite3.Row]:
+    """All closed sessions for a streamer, newest first."""
+    return conn.execute(
+        "SELECT * FROM session WHERE streamer_username = ? AND ended_at IS NOT NULL ORDER BY id DESC",
+        (streamer_username,),
+    ).fetchall()
+
+
+def get_session_top_tiltees(conn: sqlite3.Connection, session_id: int) -> list[sqlite3.Row]:
+    """Players ranked by number of times they held top tiltee in the session."""
+    return conn.execute(
+        """
+        SELECT top_tiltee_username, COUNT(*) AS tiltee_count
+        FROM level
+        WHERE session_id = ? AND top_tiltee_username IS NOT NULL
+        GROUP BY top_tiltee_username
+        ORDER BY tiltee_count DESC
+        """,
+        (session_id,),
+    ).fetchall()
+
+
+def get_session_level_count(conn: sqlite3.Connection, session_id: int) -> int:
+    """Total number of levels recorded for a session."""
+    row = conn.execute(
+        "SELECT COUNT(*) AS cnt FROM level WHERE session_id = ?",
+        (session_id,),
+    ).fetchone()
+    return row["cnt"] if row else 0
+
+
 def get_level_summary(conn: sqlite3.Connection, level_id: int) -> sqlite3.Row | None:
     """Level row joined with survivor/total counts."""
     return conn.execute(

@@ -154,6 +154,23 @@ def create_app(watcher, db_path: str, config_path: str | None = None) -> Flask:
     def config_page():
         return render_template("config.html")
 
+    @app.route("/history")
+    def history():
+        with db.get_conn(db_path) as conn:
+            sessions = db.get_all_closed_sessions(conn, watcher.streamer_username)
+            history_data = []
+            for s in sessions:
+                leaderboard = db.get_session_leaderboard(conn, s["id"])
+                top_tiltees = db.get_session_top_tiltees(conn, s["id"])
+                level_count = db.get_session_level_count(conn, s["id"])
+                history_data.append({
+                    "session":    dict(s),
+                    "leaderboard": [dict(r) for r in leaderboard],
+                    "top_tiltees": [dict(r) for r in top_tiltees],
+                    "level_count": level_count,
+                })
+        return render_template("history.html", sessions=history_data)
+
     @app.route("/api/config", methods=["GET"])
     def api_config_get():
         return jsonify(get_config(path=_cfg_path))
