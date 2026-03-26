@@ -53,6 +53,9 @@
       <label for="font_filter">Font family</label>
       <input type="text" id="font_filter" placeholder="Filter fonts…" autocomplete="off">
       <select id="font_family"></select>
+      <label for="sav_filename" style="margin-top:12px">Colour save file name</label>
+      <input type="text" id="sav_filename" placeholder="New tilts.sav" autocomplete="off">
+      <p class="note">Filename of the .sav file inside the Sessions subfolder of your game save directory. Used to read per-player colours.</p>
     </div>
   </details>
 
@@ -334,6 +337,7 @@
     const sel = document.getElementById('font_family');
     const match = [...sel.options].find(o => o.value === cfg.global.font_family);
     sel.value = match ? cfg.global.font_family : sel.options[0].value;
+    document.getElementById('sav_filename').value = cfg.global.sav_filename || 'New tilts.sav';
 
     // Leaderboard
     document.getElementById('lb_enabled').checked               = cfg.leaderboard.enabled;
@@ -482,6 +486,7 @@
     return {
       global: {
         font_family: document.getElementById('font_family').value,
+        sav_filename: document.getElementById('sav_filename').value.trim() || 'New tilts.sav',
       },
       leaderboard: {
         enabled:              document.getElementById('lb_enabled').checked,
@@ -575,7 +580,7 @@
   }
 
   [
-    'font_family',
+    'font_family', 'sav_filename',
     'lb_enabled', 'lb_panel_width', 'lb_panel_border_radius', 'lb_opacity', 'lb_font_size', 'lb_font_colour',
     'hdr_text_transform', 'hdr_font_weight',
     'hdr_override_enabled', 'hdr_font_size', 'hdr_font_colour', 'hdr_bg_opacity', 'hdr_bg_colour',

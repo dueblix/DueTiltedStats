@@ -343,6 +343,30 @@ def test_history_page_returns_200(client):
 # Player colours
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# sav_filename config
+# ---------------------------------------------------------------------------
+
+def test_default_config_global_has_sav_filename():
+    assert DEFAULT_CONFIG["global"]["sav_filename"] == "New tilts.sav"
+
+
+def test_api_config_post_sav_filename_persists(client):
+    client.post("/api/config", json={"global": {"sav_filename": "My Game.sav"}})
+    data = client.get("/api/config").get_json()
+    assert data["global"]["sav_filename"] == "My Game.sav"
+
+
+def test_api_config_post_sav_filename_empty_string_falls_back_to_default(client):
+    """An empty sav_filename should not overwrite the default — the UI enforces
+    the fallback too, but the server must not persist an empty string either."""
+    client.post("/api/config", json={"global": {"sav_filename": "My Game.sav"}})
+    # Deep-merge keeps the existing value if a partial post omits the key.
+    client.post("/api/config", json={"global": {"font_family": "Arial, sans-serif"}})
+    data = client.get("/api/config").get_json()
+    assert data["global"]["sav_filename"] == "My Game.sav"
+
+
 def test_default_config_has_player_colours():
     assert "player_colours" in DEFAULT_CONFIG
     assert DEFAULT_CONFIG["player_colours"] == {}

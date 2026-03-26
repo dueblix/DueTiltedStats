@@ -6,6 +6,7 @@ and Windows filesystems mounted in WSL (/mnt/c/...). Polling also avoids
 inotify limits and is safe inside PyInstaller bundles.
 """
 
+import json
 import os
 from pathlib import Path
 
@@ -71,17 +72,23 @@ class Watcher:
         self.streamer_username = streamer_username
 
         save_dir = save_dir or resolve_save_dir()
+        self.save_dir    = save_dir
         self.players_csv = os.path.join(save_dir, "LastTiltLevelPlayers.csv")
         self.level_csv   = os.path.join(save_dir, "LastTiltLevel.csv")
-        self.sav_file    = os.path.join(save_dir, "Sessions", "New tilts.sav")
+
+        # config_path is set (or overridden) by create_app() so the watcher
+        # and Flask use the same config file.  None falls back to the hardcoded
+        # default filename until the app is running.
+        self.config_path: str | None = None
 
         # colours is read by Flask and written here; dict replacement is
         # GIL-atomic in CPython so no lock is needed for this use case.
         self.colours: dict = {}
 
-        self._last_mtime: float | None = None
-        self._sav_mtime:  float | None = None
-        self._observer:   PollingObserver | None = None
+        self._last_mtime:     float | None = None
+        self._sav_mtime:      float | None = None
+        self._sav_path_last:  str   | None = None  # detects filename changes
+        self._observer:       PollingObserver | None = None
 
     # ------------------------------------------------------------------
     # Public interface
@@ -158,15 +165,34 @@ class Watcher:
             except Exception as exc:
                 print(f"[watcher] Error processing level: {exc}")
 
+    def _get_sav_path(self) -> str:
+        """Return the full path to the .sav file using the configured filename."""
+        filename = "New tilts.sav"
+        if self.config_path:
+            try:
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                name = data.get("global", {}).get("sav_filename", "")
+                if name:
+                    filename = name
+            except Exception:
+                pass
+        return os.path.join(self.save_dir, "Sessions", filename)
+
     def _refresh_colours(self) -> None:
         """Reload player colours from the .sav file only when it has changed."""
-        if not os.path.exists(self.sav_file):
+        sav_file = self._get_sav_path()
+        if sav_file != self._sav_path_last:
+            # Filename changed in config — reset mtime so the new file is read.
+            self._sav_mtime = None
+            self._sav_path_last = sav_file
+        if not os.path.exists(sav_file):
             return
-        mtime = _safe_mtime(self.sav_file)
+        mtime = _safe_mtime(sav_file)
         if mtime == self._sav_mtime:
             return
         try:
-            self.colours = processor.generate_colours(self.sav_file)
+            self.colours = processor.generate_colours(sav_file)
             self._sav_mtime = mtime
         except Exception as exc:
             print(f"[watcher] Could not parse colour data: {exc}")

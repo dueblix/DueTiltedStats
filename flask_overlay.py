@@ -33,6 +33,7 @@ import db
 DEFAULT_CONFIG = {
     "global": {
         "font_family": "Courier New, monospace",
+        "sav_filename": "New tilts.sav",
     },
     "leaderboard": {
         "enabled": True,
@@ -156,6 +157,9 @@ def save_config(config: dict, path: str | None = None) -> None:
 def create_app(watcher, db_path: str, config_path: str | None = None) -> Flask:
     app = Flask(__name__)
     _cfg_path = config_path  # overrides CONFIG_PATH; pass a tmp path in tests
+    # Give the watcher the authoritative config path so _get_sav_path() resolves
+    # the user-configured filename on every colour refresh.
+    watcher.config_path = _cfg_path or CONFIG_PATH
     _cfg_cache: dict | None = None
     _cfg_mtime: float | None = None
 
