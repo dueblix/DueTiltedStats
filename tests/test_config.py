@@ -414,3 +414,22 @@ def test_api_state_waiting_has_no_run_history(client):
     data = client.get("/api/state").get_json()
     assert data["status"] == "waiting"
     assert "run_history" not in data
+
+
+def test_api_state_idle_returns_run_history_from_last_run(client_and_db):
+    """Idle mode (closed session) surfaces run_history from the session's last run."""
+    c, db_path = client_and_db
+    with db.get_conn(db_path) as conn:
+        sid = db.insert_session(conn, "testuser", "2024-01-01T00:00:00")
+        rid = db.insert_run(conn, "testuser", "2024-01-01T00:00:00")
+        lid = db.insert_level(conn, rid, sid, 1, 30.0, "2024-01-01T00:01:00", 100, True, None)
+        db.insert_player_levels(conn, lid, [
+            {"username": "alice", "display_name": "Alice", "survived": True}
+        ])
+        db.close_run(conn, rid, "2024-01-01T00:10:00")
+        db.close_session(conn, sid, "2024-01-01T00:10:00")
+    data = c.get("/api/state").get_json()
+    assert data["status"] == "idle"
+    assert len(data["run_history"]) == 1
+    assert data["run_history"][0]["level_number"] == 1
+    assert data["run_totals"]["run_ended_at"] == "2024-01-01T00:10:00"

@@ -19,7 +19,7 @@ import json
 import os
 import sys
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime
 
 from flask import Flask, jsonify, render_template, request
 
@@ -220,6 +220,8 @@ def create_app(watcher, db_path: str, config_path: str | None = None) -> Flask:
                 last_level  = db.get_last_level(conn, run_id)
                 leaderboard = db.get_run_leaderboard(conn, run_id)
                 summary     = db.get_level_summary(conn, last_level["id"]) if last_level else None
+                # Fetch more rows than any realistic history_rows setting; the
+                # overlay JS slices to cfg.bottom_bar.history_rows before display.
                 run_history = db.get_run_level_history(conn, run_id, 50)
                 run_totals_row = db.get_run_totals(conn, run_id)
             else:
@@ -231,7 +233,7 @@ def create_app(watcher, db_path: str, config_path: str | None = None) -> Flask:
                 last_level  = db.get_last_level(conn, last_run_id) if last_run_id else None
                 leaderboard = db.get_session_leaderboard(conn, last_session["id"])
                 summary     = db.get_level_summary(conn, last_level["id"]) if last_level else None
-                run_history = db.get_run_level_history(conn, last_run_id, 50) if last_run_id else []
+                run_history = db.get_run_level_history(conn, last_run_id, 50) if last_run_id else []  # see active branch comment
                 run_totals_row = db.get_run_totals(conn, last_run_id) if last_run_id else None
 
         level_data = None
@@ -289,7 +291,7 @@ def create_app(watcher, db_path: str, config_path: str | None = None) -> Flask:
             "run_leaderboard": players,
             "run_history":     history_list,
             "run_totals":      totals_data,
-            "server_time":     datetime.now(timezone.utc).isoformat(),
+            "server_time":     datetime.now().isoformat(),
         })
 
     return app
