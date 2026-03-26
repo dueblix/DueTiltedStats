@@ -19,6 +19,7 @@ import json
 import os
 import sys
 import tempfile
+from datetime import datetime, timezone
 
 from flask import Flask, jsonify, render_template, request
 
@@ -73,6 +74,15 @@ DEFAULT_CONFIG = {
         "font_size": 20,
         "font_colour": "#ffffff",
         "opacity": 0.75,
+        "history_rows": 5,
+        "recent_at_bottom": True,
+        "show_total_row": True,
+        "cells": [
+            {"key": "level",  "label": "Level",  "visible": True},
+            {"key": "time",   "label": "Time",   "visible": True},
+            {"key": "saved",  "label": "Saved",  "visible": True},
+            {"key": "points", "label": "Points", "visible": True},
+        ],
     },
     "player_colours": {},
 }
@@ -206,9 +216,12 @@ def create_app(watcher, db_path: str, config_path: str | None = None) -> Flask:
 
             if open_run and open_session:
                 status      = "active"
-                last_level  = db.get_last_level(conn, open_run["id"])
-                leaderboard = db.get_run_leaderboard(conn, open_run["id"])
+                run_id      = open_run["id"]
+                last_level  = db.get_last_level(conn, run_id)
+                leaderboard = db.get_run_leaderboard(conn, run_id)
                 summary     = db.get_level_summary(conn, last_level["id"]) if last_level else None
+                run_history = db.get_run_level_history(conn, run_id, 50)
+                run_totals_row = db.get_run_totals(conn, run_id)
             else:
                 last_session = db.get_last_closed_session(conn, watcher.streamer_username)
                 if not last_session:
@@ -218,6 +231,8 @@ def create_app(watcher, db_path: str, config_path: str | None = None) -> Flask:
                 last_level  = db.get_last_level(conn, last_run_id) if last_run_id else None
                 leaderboard = db.get_session_leaderboard(conn, last_session["id"])
                 summary     = db.get_level_summary(conn, last_level["id"]) if last_level else None
+                run_history = db.get_run_level_history(conn, last_run_id, 50) if last_run_id else []
+                run_totals_row = db.get_run_totals(conn, last_run_id) if last_run_id else None
 
         level_data = None
         if summary:
@@ -229,6 +244,29 @@ def create_app(watcher, db_path: str, config_path: str | None = None) -> Flask:
                 "survivors":           summary["survivors"],
                 "total_players":       summary["total_players"],
                 "top_tiltee_username": summary["top_tiltee_username"],
+            }
+
+        history_list = [
+            {
+                "level_number":  row["level_number"],
+                "elapsed_time":  row["elapsed_time"],
+                "level_exp":     row["level_exp"],
+                "level_passed":  bool(row["level_passed"]),
+                "survivors":     row["survivors"],
+                "total_players": row["total_players"],
+            }
+            for row in run_history
+        ]
+
+        totals_data = None
+        if run_totals_row:
+            totals_data = {
+                "level_count":     run_totals_row["level_count"],
+                "total_survivors": run_totals_row["total_survivors"],
+                "total_players":   run_totals_row["total_players"],
+                "total_exp":       run_totals_row["total_exp"],
+                "run_started_at":  run_totals_row["started_at"],
+                "run_ended_at":    run_totals_row["ended_at"],
             }
 
         player_colours = get_config(path=_cfg_path).get("player_colours", {})
@@ -249,6 +287,9 @@ def create_app(watcher, db_path: str, config_path: str | None = None) -> Flask:
             "status":          status,
             "last_level":      level_data,
             "run_leaderboard": players,
+            "run_history":     history_list,
+            "run_totals":      totals_data,
+            "server_time":     datetime.now(timezone.utc).isoformat(),
         })
 
     return app

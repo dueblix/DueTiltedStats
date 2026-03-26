@@ -117,7 +117,7 @@
     padding-right: 10px;
   }
 
-  /* ---- Bottom bar: level recap ---- */
+  /* ---- Bottom bar: level history table ---- */
   #bottom-bar {
     position: absolute;
     bottom: 0;
@@ -127,30 +127,33 @@
     display: none;
   }
 
-  #level-info {
-    display: flex;
-    align-items: center;
-    gap: 24px;
-    padding: 6px 12px;
-    letter-spacing: 0.04em;
+  #level-history {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
   }
 
-  #level-info .cell {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  #level-info .cell .label {
+  #level-history thead th {
     color: #aaaaaa;
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
+    padding: 3px 8px 1px;
+    text-align: center;
+    white-space: nowrap;
   }
 
-  #level-info .cell .value {
+  #level-history tbody td {
     color: var(--bottom-bar-font-colour);
     font-size: var(--bottom-bar-font-size);
+    padding: 2px 8px;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  #level-history tbody tr.total-row td {
+    border-top: 1px solid rgba(255,255,255,0.25);
+    font-weight: bold;
   }
 </style>
 </head>
@@ -167,33 +170,21 @@
   </div>
 
   <div id="bottom-bar">
-    <div id="level-info">
-      <div class="cell">
-        <span class="label">Level</span>
-        <span class="value" id="li-level">—</span>
-      </div>
-      <div class="cell">
-        <span class="label">Time</span>
-        <span class="value" id="li-time">—</span>
-      </div>
-      <div class="cell">
-        <span class="label">Saved</span>
-        <span class="value" id="li-saved">—</span>
-      </div>
-      <div class="cell">
-        <span class="label">Points</span>
-        <span class="value" id="li-pts">—</span>
-      </div>
-    </div>
+    <table id="level-history">
+      <thead><tr id="lh-head"></tr></thead>
+      <tbody id="lh-body"></tbody>
+    </table>
   </div>
 
 <script>
   const POLL_INTERVAL = 2000;
 
   let rowCount = null;
-  let activeColumns = [];  // [{key, label}] for visible columns in order
+  let activeColumns = [];  // [{key, label}] for visible leaderboard columns in order
+  let activeCells = [];    // [{key, label}] for visible bottom-bar cells in order
   let currentConfig = null;
-  let lastLayoutSig = null;  // detects layout-affecting config changes
+  let lastLayoutSig = null;   // detects layout-affecting leaderboard config changes
+  let lastBbLayoutSig = null; // detects bottom-bar cell/font changes
 
   function layoutSig(lb) {
     // Captures fields that affect row height or column structure, so the header
@@ -208,6 +199,11 @@
     const headerFontSize = hdr.enabled ? hdr.font_size : lb.font_size;
     const cols = lb.columns.filter(c => c.visible).map(c => `${c.key}:${c.label}`).join(',');
     return `${lb.font_size}|${headerFontSize}|${lb.row_height}|${lb.cell_padding_v}|${cols}`;
+  }
+
+  function bbLayoutSig(bb) {
+    const cells = (bb.cells || []).filter(c => c.visible).map(c => `${c.key}:${c.label}`).join(',');
+    return `${bb.font_size}|${cells}`;
   }
 
   // Maps each config column key to the matching field name in the /api/state
@@ -302,7 +298,7 @@
     body.style.setProperty('--bottom-bar-font-size',    bb.font_size + 'px');
     body.style.setProperty('--bottom-bar-font-colour',  bb.font_colour);
 
-    // Rebuild column header and reset row count only when layout actually changed
+    // Rebuild leaderboard column header and reset row count only when layout actually changed
     const sig = layoutSig(lb);
     if (sig !== lastLayoutSig) {
       lastLayoutSig  = sig;
@@ -316,6 +312,20 @@
         headRow.appendChild(th);
       }
       rowCount = null;
+    }
+
+    // Rebuild bottom-bar table header when cells or font change
+    const bbSig = bbLayoutSig(bb);
+    if (bbSig !== lastBbLayoutSig) {
+      lastBbLayoutSig = bbSig;
+      activeCells = (bb.cells || []).filter(c => c.visible);
+      const lhHead = document.getElementById('lh-head');
+      lhHead.innerHTML = '';
+      for (const cell of activeCells) {
+        const th = document.createElement('th');
+        th.textContent = cell.label;
+        lhHead.appendChild(th);
+      }
     }
   }
 
@@ -358,6 +368,78 @@
     }
   }
 
+  function formatLevelTime(elapsed_time) {
+    if (elapsed_time === null || elapsed_time === undefined) return '—';
+    const m = Math.floor(elapsed_time / 60).toString().padStart(2, '0');
+    const s = (elapsed_time % 60).toFixed(3).padStart(6, '0');
+    return `${m}:${s}`;
+  }
+
+  function formatGameTime(started_at, ended_at, server_time, isActive) {
+    if (!started_at) return '—';
+    const start = new Date(started_at).getTime();
+    const end = isActive ? new Date(server_time).getTime() : new Date(ended_at).getTime();
+    if (isNaN(start) || isNaN(end)) return '—';
+    const totalSec = Math.max(0, Math.floor((end - start) / 1000));
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+
+  function formatCell(key, lvl) {
+    if (key === 'level') return lvl.level_number;
+    if (key === 'time')  return formatLevelTime(lvl.elapsed_time);
+    if (key === 'saved') {
+      const pct = lvl.total_players > 0
+        ? Math.round(lvl.survivors / lvl.total_players * 100) : 0;
+      return `${lvl.survivors}/${lvl.total_players} (${pct}%)`;
+    }
+    if (key === 'points') return lvl.level_exp !== null ? lvl.level_exp : '—';
+    return '—';
+  }
+
+  function renderLevelHistory(data) {
+    const bb = currentConfig.bottom_bar;
+    const tbody = document.getElementById('lh-body');
+    tbody.innerHTML = '';
+
+    let rows = (data.run_history || []).slice(0, bb.history_rows ?? 5);
+    if (bb.recent_at_bottom !== false) rows = rows.slice().reverse();
+
+    for (const lvl of rows) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = activeCells.map(c => `<td>${formatCell(c.key, lvl)}</td>`).join('');
+      tbody.appendChild(tr);
+    }
+
+    if ((bb.show_total_row !== false) && data.run_totals) {
+      const tot = data.run_totals;
+      const isActive = data.status === 'active';
+      const tr = document.createElement('tr');
+      tr.className = 'total-row';
+      tr.innerHTML = activeCells.map(c => {
+        let val;
+        if (c.key === 'level') {
+          val = tot.level_count > 0 ? tot.level_count : '—';
+        } else if (c.key === 'time') {
+          val = formatGameTime(tot.run_started_at, tot.run_ended_at, data.server_time, isActive);
+        } else if (c.key === 'saved') {
+          const pct = tot.total_players > 0
+            ? Math.round(tot.total_survivors / tot.total_players * 100) : 0;
+          val = `${tot.total_survivors}/${tot.total_players} (${pct}%)`;
+        } else if (c.key === 'points') {
+          val = tot.total_exp;
+        } else {
+          val = '—';
+        }
+        return `<td>${val}</td>`;
+      }).join('');
+      tbody.appendChild(tr);
+    }
+  }
+
   async function refresh() {
     let data;
     try {
@@ -384,31 +466,12 @@
     statusDiv.style.display = data.status === 'idle' && showLabel ? 'block' : 'none';
 
     // --- Bottom bar ---
-    // bottom_bar.enabled is gated by BOTH config AND game state: only show when
-    // the config allows it AND there is active level data to display.
+    // Show when config enables it AND there is history data to display.
     // currentConfig is null only if applyConfig hasn't succeeded yet on first tick.
-    if (data.last_level && currentConfig?.bottom_bar.enabled) {
-      const ll = data.last_level;
-
-      document.getElementById('li-level').textContent = ll.level_number;
-
-      if (ll.elapsed_time !== null) {
-        const m = Math.floor(ll.elapsed_time / 60).toString().padStart(2, '0');
-        const s = (ll.elapsed_time % 60).toFixed(3).padStart(6, '0');
-        document.getElementById('li-time').textContent = `${m}:${s}`;
-      } else {
-        document.getElementById('li-time').textContent = '—';
-      }
-
-      const pct = ll.total_players > 0
-        ? Math.round(ll.survivors / ll.total_players * 100)
-        : 0;
-      document.getElementById('li-saved').textContent =
-        `${ll.survivors}/${ll.total_players} (${pct}%)`;
-
-      document.getElementById('li-pts').textContent =
-        ll.level_exp !== null ? ll.level_exp : '—';
-
+    const history = data.run_history || [];
+    const hasTotals = data.run_totals && data.run_totals.level_count > 0;
+    if (currentConfig?.bottom_bar.enabled && (history.length > 0 || hasTotals)) {
+      renderLevelHistory(data);
       bottomBar.style.display = 'block';
     } else {
       bottomBar.style.display = 'none';

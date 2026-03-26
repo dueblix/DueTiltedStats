@@ -221,6 +221,22 @@
         <label for="bb_font_colour" style="margin:0">Font colour</label>
         <input type="color" id="bb_font_colour">
       </div>
+      <div class="field-pair" style="margin-top:8px">
+        <div>
+          <label for="bb_history_rows">History rows</label>
+          <input type="number" id="bb_history_rows" min="1" max="20">
+        </div>
+      </div>
+      <div class="inline-row">
+        <input type="checkbox" id="bb_recent_at_bottom">
+        <label for="bb_recent_at_bottom" style="margin:0">Most recent row at bottom</label>
+      </div>
+      <div class="inline-row">
+        <input type="checkbox" id="bb_show_total_row">
+        <label for="bb_show_total_row" style="margin:0">Show total row</label>
+      </div>
+      <label style="margin-top:12px">Cells</label>
+      <div id="cells-list"></div>
     </div>
   </details>
 
@@ -353,10 +369,14 @@
     buildColumnRows(cfg.leaderboard.columns);
 
     // Bottom bar
-    document.getElementById('bb_enabled').checked   = cfg.bottom_bar.enabled;
-    document.getElementById('bb_opacity').value     = cfg.bottom_bar.opacity;
-    document.getElementById('bb_font_size').value   = cfg.bottom_bar.font_size;
-    document.getElementById('bb_font_colour').value = cfg.bottom_bar.font_colour;
+    document.getElementById('bb_enabled').checked          = cfg.bottom_bar.enabled;
+    document.getElementById('bb_opacity').value            = cfg.bottom_bar.opacity;
+    document.getElementById('bb_font_size').value          = cfg.bottom_bar.font_size;
+    document.getElementById('bb_font_colour').value        = cfg.bottom_bar.font_colour;
+    document.getElementById('bb_history_rows').value       = cfg.bottom_bar.history_rows ?? 5;
+    document.getElementById('bb_recent_at_bottom').checked = cfg.bottom_bar.recent_at_bottom !== false;
+    document.getElementById('bb_show_total_row').checked   = cfg.bottom_bar.show_total_row !== false;
+    buildCellRows(cfg.bottom_bar.cells || []);
 
     // Player colours
     buildPlayerColourRows(cfg.player_colours || {});
@@ -438,6 +458,43 @@
     autoSave();
   }
 
+  function buildCellRows(cells) {
+    const list = document.getElementById('cells-list');
+    list.innerHTML = '';
+    for (const cell of cells) {
+      const row = document.createElement('div');
+      row.className = 'col-row';
+      row.dataset.key = cell.key;
+      row.innerHTML = `
+        <button type="button" class="move-btn" onclick="moveCellRow('${cell.key}', -1)">&#9650;</button>
+        <button type="button" class="move-btn" onclick="moveCellRow('${cell.key}', +1)">&#9660;</button>
+        <input type="text" class="col-label-input" id="cell_label_${cell.key}">
+        <input type="checkbox" id="cell_vis_${cell.key}" ${cell.visible ? 'checked' : ''}>
+        <span class="col-key">${cell.key}</span>
+      `;
+      const labelInput = row.querySelector('.col-label-input');
+      labelInput.value = cell.label;
+      labelInput.dataset.savedLabel = cell.label;
+      labelInput.addEventListener('blur', function() {
+        if (this.value.trim() === '') this.value = this.dataset.savedLabel;
+        autoSave();
+      });
+      row.querySelector('input[type=checkbox]').addEventListener('change', autoSave);
+      list.appendChild(row);
+    }
+  }
+
+  function moveCellRow(key, dir) {
+    const list = document.getElementById('cells-list');
+    const rows = [...list.querySelectorAll('.col-row')];
+    const idx = rows.findIndex(r => r.dataset.key === key);
+    const target = idx + dir;
+    if (target < 0 || target >= rows.length) return;
+    if (dir === -1) list.insertBefore(rows[idx], rows[target]);
+    else            list.insertBefore(rows[target], rows[idx]);
+    autoSave();
+  }
+
   function numVal(id, fallback) {
     const v = parseFloat(document.getElementById(id).value);
     return isNaN(v) ? fallback : v;
@@ -488,10 +545,14 @@
         columns,
       },
       bottom_bar: {
-        enabled:    document.getElementById('bb_enabled').checked,
-        opacity:    numVal('bb_opacity', currentCfg.bottom_bar.opacity),
-        font_size:  numVal('bb_font_size', currentCfg.bottom_bar.font_size),
-        font_colour: document.getElementById('bb_font_colour').value,
+        enabled:          document.getElementById('bb_enabled').checked,
+        opacity:          numVal('bb_opacity', currentCfg.bottom_bar.opacity),
+        font_size:        numVal('bb_font_size', currentCfg.bottom_bar.font_size),
+        font_colour:      document.getElementById('bb_font_colour').value,
+        history_rows:     numVal('bb_history_rows', currentCfg.bottom_bar.history_rows ?? 5),
+        recent_at_bottom: document.getElementById('bb_recent_at_bottom').checked,
+        show_total_row:   document.getElementById('bb_show_total_row').checked,
+        cells:            collectCells(),
       },
       player_colours: collectPlayerColours(),
     };
@@ -505,6 +566,20 @@
       if (name) result[name] = colour;
     }
     return result;
+  }
+
+  function collectCells() {
+    const cells = [];
+    for (const row of document.querySelectorAll('#cells-list .col-row')) {
+      const key = row.dataset.key;
+      const orig = (currentCfg.bottom_bar.cells || []).find(c => c.key === key)?.label || key;
+      cells.push({
+        key,
+        label:   document.getElementById('cell_label_' + key).value.trim() || orig,
+        visible: document.getElementById('cell_vis_' + key).checked,
+      });
+    }
+    return cells;
   }
 
   async function autoSave() {
@@ -540,6 +615,7 @@
     'row_separator', 'lb_show_session_label',
     'lb_row_height', 'lb_cell_padding_v', 'lb_cell_padding_h',
     'bb_enabled', 'bb_opacity', 'bb_font_size', 'bb_font_colour',
+    'bb_history_rows', 'bb_recent_at_bottom', 'bb_show_total_row',
   ].forEach(id => document.getElementById(id).addEventListener('change', autoSave));
 
   document.getElementById('reset-btn').addEventListener('click', async () => {

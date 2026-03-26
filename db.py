@@ -309,3 +309,55 @@ def get_level_summary(conn: sqlite3.Connection, level_id: int) -> sqlite3.Row | 
         """,
         (level_id,),
     ).fetchone()
+
+
+def get_run_level_history(
+    conn: sqlite3.Connection, run_id: int, limit: int
+) -> list[sqlite3.Row]:
+    """Last *limit* levels for a run, most-recent first, with survivor/player counts."""
+    return conn.execute(
+        """
+        SELECT
+            l.*,
+            COUNT(pl.id)                     AS total_players,
+            COALESCE(SUM(pl.survived), 0)    AS survivors
+        FROM level l
+        LEFT JOIN player_level pl ON pl.level_id = l.id
+        WHERE l.run_id = ?
+        GROUP BY l.id
+        ORDER BY l.level_number DESC
+        LIMIT ?
+        """,
+        (run_id, limit),
+    ).fetchall()
+
+
+def get_run_totals(conn: sqlite3.Connection, run_id: int) -> sqlite3.Row | None:
+    """Aggregate stats for a run: started/ended timestamps, level count, survivor/player counts, total exp."""
+    return conn.execute(
+        """
+        SELECT
+            r.started_at,
+            r.ended_at,
+            COUNT(ls.id)                       AS level_count,
+            COALESCE(SUM(ls.survivors), 0)     AS total_survivors,
+            COALESCE(SUM(ls.total_players), 0) AS total_players,
+            COALESCE(SUM(ls.level_exp), 0)     AS total_exp
+        FROM run r
+        LEFT JOIN (
+            SELECT
+                l.id,
+                l.run_id,
+                COALESCE(l.level_exp, 0)          AS level_exp,
+                COALESCE(SUM(pl.survived), 0)     AS survivors,
+                COUNT(pl.id)                       AS total_players
+            FROM level l
+            LEFT JOIN player_level pl ON pl.level_id = l.id
+            WHERE l.run_id = ?
+            GROUP BY l.id
+        ) ls ON ls.run_id = r.id
+        WHERE r.id = ?
+        GROUP BY r.id
+        """,
+        (run_id, run_id),
+    ).fetchone()

@@ -356,3 +356,61 @@ def test_api_state_falls_back_to_watcher_colour(client_and_db):
     data = c.get("/api/state").get_json()
     # _StubWatcher.colours is {}, so _rgba_to_css(None) → "rgba(255,255,255,1)"
     assert data["run_leaderboard"][0]["colour"] == "rgba(255,255,255,1)"
+
+
+# ---------------------------------------------------------------------------
+# Default config — bottom_bar schema
+# ---------------------------------------------------------------------------
+
+def test_default_config_bottom_bar_has_history_settings():
+    bb = DEFAULT_CONFIG["bottom_bar"]
+    assert bb["history_rows"] == 5
+    assert bb["recent_at_bottom"] is True
+    assert bb["show_total_row"] is True
+    assert isinstance(bb["cells"], list)
+    assert len(bb["cells"]) == 4
+    keys = [c["key"] for c in bb["cells"]]
+    assert keys == ["level", "time", "saved", "points"]
+
+
+def test_get_config_bottom_bar_partial_file_fills_new_keys(tmp_path):
+    """Old config with only the original bottom_bar keys gets new keys from defaults."""
+    p = tmp_path / "config.json"
+    p.write_text('{"bottom_bar": {"font_size": 24}}')
+    cfg = get_config(path=str(p))
+    bb = cfg["bottom_bar"]
+    assert bb["font_size"] == 24
+    assert bb["history_rows"] == 5
+    assert "cells" in bb
+
+
+# ---------------------------------------------------------------------------
+# /api/state — run_history + run_totals fields
+# ---------------------------------------------------------------------------
+
+def test_api_state_returns_run_history_and_totals(client_and_db):
+    c, db_path = client_and_db
+    with db.get_conn(db_path) as conn:
+        sid = db.insert_session(conn, "testuser", "2024-01-01T00:00:00")
+        rid = db.insert_run(conn, "testuser", "2024-01-01T00:00:00")
+        lid = db.insert_level(conn, rid, sid, 1, 30.0, "2024-01-01T00:01:00", 100, True, None)
+        db.insert_player_levels(conn, lid, [
+            {"username": "alice", "display_name": "Alice", "survived": True}
+        ])
+    data = c.get("/api/state").get_json()
+    assert "run_history" in data
+    assert "run_totals" in data
+    assert "server_time" in data
+    assert len(data["run_history"]) == 1
+    assert data["run_history"][0]["level_number"] == 1
+    assert data["run_history"][0]["survivors"] == 1
+    assert data["run_history"][0]["total_players"] == 1
+    assert data["run_totals"]["level_count"] == 1
+    assert data["run_totals"]["total_exp"] == 100
+    assert data["run_totals"]["run_started_at"] == "2024-01-01T00:00:00"
+
+
+def test_api_state_waiting_has_no_run_history(client):
+    data = client.get("/api/state").get_json()
+    assert data["status"] == "waiting"
+    assert "run_history" not in data

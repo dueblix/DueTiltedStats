@@ -257,3 +257,73 @@ class TestHistoryQueries:
         conn = make_conn()
         sid = db.insert_session(conn, "streamer1", "2024-01-01T00:00:00")
         assert db.get_session_level_count(conn, sid) == 0
+
+
+# ---------------------------------------------------------------------------
+# Run history + totals
+# ---------------------------------------------------------------------------
+
+class TestRunHistoryAndTotals:
+    def _setup(self, conn):
+        sid = db.insert_session(conn, "streamer1", "2024-01-01T00:00:00")
+        rid = db.insert_run(conn, "streamer1", "2024-01-01T00:00:00")
+        for i in range(1, 4):
+            lid = db.insert_level(
+                conn, rid, sid, i, 30.0 * i, f"2024-01-01T00:{i:02d}:00", 100 * i, True, None
+            )
+            db.insert_player_levels(conn, lid, [
+                {"username": "alice", "display_name": "Alice", "survived": True},
+                {"username": "bob",   "display_name": "Bob",   "survived": False},
+            ])
+        return sid, rid
+
+    def test_get_run_level_history_returns_last_n_most_recent_first(self):
+        conn = make_conn()
+        _, rid = self._setup(conn)
+        rows = db.get_run_level_history(conn, rid, 2)
+        assert len(rows) == 2
+        assert rows[0]["level_number"] == 3
+        assert rows[1]["level_number"] == 2
+
+    def test_get_run_level_history_player_counts(self):
+        conn = make_conn()
+        _, rid = self._setup(conn)
+        rows = db.get_run_level_history(conn, rid, 10)
+        assert len(rows) == 3
+        for row in rows:
+            assert row["total_players"] == 2
+            assert row["survivors"] == 1
+
+    def test_get_run_level_history_empty_run(self):
+        conn = make_conn()
+        db.insert_session(conn, "streamer1", "2024-01-01T00:00:00")
+        rid = db.insert_run(conn, "streamer1", "2024-01-01T00:00:00")
+        assert db.get_run_level_history(conn, rid, 5) == []
+
+    def test_get_run_totals_aggregates(self):
+        conn = make_conn()
+        _, rid = self._setup(conn)
+        totals = db.get_run_totals(conn, rid)
+        assert totals["level_count"]     == 3
+        assert totals["total_survivors"] == 3   # 1 survivor per level
+        assert totals["total_players"]   == 6   # 2 players per level
+        assert totals["total_exp"]       == 600  # 100+200+300
+        assert totals["started_at"]      == "2024-01-01T00:00:00"
+
+    def test_get_run_totals_empty_run(self):
+        conn = make_conn()
+        db.insert_session(conn, "streamer1", "2024-01-01T00:00:00")
+        rid = db.insert_run(conn, "streamer1", "2024-01-01T00:00:00")
+        totals = db.get_run_totals(conn, rid)
+        assert totals["level_count"]     == 0
+        assert totals["total_survivors"] == 0
+        assert totals["total_players"]   == 0
+        assert totals["total_exp"]       == 0
+
+    def test_get_run_totals_includes_ended_at(self):
+        conn = make_conn()
+        db.insert_session(conn, "streamer1", "2024-01-01T00:00:00")
+        rid = db.insert_run(conn, "streamer1", "2024-01-01T00:00:00")
+        db.close_run(conn, rid, "2024-01-01T01:00:00")
+        totals = db.get_run_totals(conn, rid)
+        assert totals["ended_at"] == "2024-01-01T01:00:00"
