@@ -366,7 +366,7 @@
     document.getElementById('lb_cell_padding_h').value          = cfg.leaderboard.cell_padding_h;
 
     // Columns
-    buildColumnRows(cfg.leaderboard.columns);
+    buildReorderableList('columns-list', cfg.leaderboard.columns, 'name', 'col', 'moveColumn');
 
     // Bottom bar
     document.getElementById('bb_enabled').checked          = cfg.bottom_bar.enabled;
@@ -376,7 +376,7 @@
     document.getElementById('bb_history_rows').value       = cfg.bottom_bar.history_rows ?? 5;
     document.getElementById('bb_recent_at_bottom').checked = cfg.bottom_bar.recent_at_bottom !== false;
     document.getElementById('bb_show_total_row').checked   = cfg.bottom_bar.show_total_row !== false;
-    buildCellRows(cfg.bottom_bar.cells || []);
+    buildReorderableList('cells-list', cfg.bottom_bar.cells || [], 'level', 'cell', 'moveCellRow');
 
     // Player colours
     buildPlayerColourRows(cfg.player_colours || {});
@@ -420,24 +420,27 @@
     list.appendChild(row);
   }
 
-  function buildColumnRows(columns) {
-    const list = document.getElementById('columns-list');
+  // Shared builder for both the leaderboard columns list and the run-history
+  // cells list. alwaysVisibleKey ('name' / 'level') matches the isName /
+  // isLevel special case that previously lived in each function separately.
+  function buildReorderableList(listId, items, alwaysVisibleKey, idPrefix, moveFnName) {
+    const list = document.getElementById(listId);
     list.innerHTML = '';
-    for (const col of columns) {
+    for (const item of items) {
       const row = document.createElement('div');
       row.className = 'col-row';
-      row.dataset.key = col.key;
-      const isName = col.key === 'name';
+      row.dataset.key = item.key;
+      const isAlways = item.key === alwaysVisibleKey;
       row.innerHTML = `
-        <button type="button" class="move-btn" onclick="moveColumn('${col.key}', -1)">&#9650;</button>
-        <button type="button" class="move-btn" onclick="moveColumn('${col.key}', +1)">&#9660;</button>
-        <input type="text" class="col-label-input" id="col_label_${col.key}">
-        <input type="checkbox" id="col_vis_${col.key}" ${col.visible ? 'checked' : ''} ${isName ? 'disabled' : ''}>
-        <span class="col-key">${col.key}</span>
+        <button type="button" class="move-btn" onclick="${moveFnName}('${item.key}', -1)">&#9650;</button>
+        <button type="button" class="move-btn" onclick="${moveFnName}('${item.key}', +1)">&#9660;</button>
+        <input type="text" class="col-label-input" id="${idPrefix}_label_${item.key}">
+        <input type="checkbox" id="${idPrefix}_vis_${item.key}" ${item.visible ? 'checked' : ''} ${isAlways ? 'disabled' : ''}>
+        <span class="col-key">${item.key}</span>
       `;
       const labelInput = row.querySelector('.col-label-input');
-      labelInput.value = col.label;
-      labelInput.dataset.savedLabel = col.label;
+      labelInput.value = item.label;
+      labelInput.dataset.savedLabel = item.label;
       labelInput.addEventListener('blur', function() {
         if (this.value.trim() === '') this.value = this.dataset.savedLabel;
         autoSave();
@@ -447,8 +450,8 @@
     }
   }
 
-  function moveColumn(key, dir) {
-    const list = document.getElementById('columns-list');
+  function moveReorderableRow(listId, key, dir) {
+    const list = document.getElementById(listId);
     const rows = [...list.querySelectorAll('.col-row')];
     const idx = rows.findIndex(r => r.dataset.key === key);
     const target = idx + dir;
@@ -457,43 +460,8 @@
     else            list.insertBefore(rows[target], rows[idx]);
     autoSave();
   }
-
-  function buildCellRows(cells) {
-    const list = document.getElementById('cells-list');
-    list.innerHTML = '';
-    for (const cell of cells) {
-      const row = document.createElement('div');
-      row.className = 'col-row';
-      row.dataset.key = cell.key;
-      row.innerHTML = `
-        <button type="button" class="move-btn" onclick="moveCellRow('${cell.key}', -1)">&#9650;</button>
-        <button type="button" class="move-btn" onclick="moveCellRow('${cell.key}', +1)">&#9660;</button>
-        <input type="text" class="col-label-input" id="cell_label_${cell.key}">
-        <input type="checkbox" id="cell_vis_${cell.key}" ${cell.visible ? 'checked' : ''}>
-        <span class="col-key">${cell.key}</span>
-      `;
-      const labelInput = row.querySelector('.col-label-input');
-      labelInput.value = cell.label;
-      labelInput.dataset.savedLabel = cell.label;
-      labelInput.addEventListener('blur', function() {
-        if (this.value.trim() === '') this.value = this.dataset.savedLabel;
-        autoSave();
-      });
-      row.querySelector('input[type=checkbox]').addEventListener('change', autoSave);
-      list.appendChild(row);
-    }
-  }
-
-  function moveCellRow(key, dir) {
-    const list = document.getElementById('cells-list');
-    const rows = [...list.querySelectorAll('.col-row')];
-    const idx = rows.findIndex(r => r.dataset.key === key);
-    const target = idx + dir;
-    if (target < 0 || target >= rows.length) return;
-    if (dir === -1) list.insertBefore(rows[idx], rows[target]);
-    else            list.insertBefore(rows[target], rows[idx]);
-    autoSave();
-  }
+  function moveColumn(key, dir)  { moveReorderableRow('columns-list', key, dir); }
+  function moveCellRow(key, dir) { moveReorderableRow('cells-list',   key, dir); }
 
   function numVal(id, fallback) {
     const v = parseFloat(document.getElementById(id).value);
@@ -576,7 +544,7 @@
       cells.push({
         key,
         label:   document.getElementById('cell_label_' + key).value.trim() || orig,
-        visible: document.getElementById('cell_vis_' + key).checked,
+        visible: key === 'level' ? true : document.getElementById('cell_vis_' + key).checked,
       });
     }
     return cells;

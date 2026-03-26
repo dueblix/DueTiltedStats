@@ -156,6 +156,23 @@ def save_config(config: dict, path: str | None = None) -> None:
 def create_app(watcher, db_path: str, config_path: str | None = None) -> Flask:
     app = Flask(__name__)
     _cfg_path = config_path  # overrides CONFIG_PATH; pass a tmp path in tests
+    _cfg_cache: dict | None = None
+    _cfg_mtime: float | None = None
+
+    def _get_config_cached() -> dict:
+        """Return config, re-reading from disk only when the file has changed."""
+        nonlocal _cfg_cache, _cfg_mtime
+        p = _cfg_path or CONFIG_PATH
+        try:
+            mtime = os.path.getmtime(p)
+        except OSError:
+            mtime = None
+        if _cfg_cache is not None and mtime == _cfg_mtime:
+            return copy.deepcopy(_cfg_cache)
+        result = get_config(path=_cfg_path)
+        _cfg_cache = result
+        _cfg_mtime = mtime
+        return copy.deepcopy(result)
 
     @app.route("/overlay")
     def overlay():
@@ -184,7 +201,7 @@ def create_app(watcher, db_path: str, config_path: str | None = None) -> Flask:
 
     @app.route("/api/config", methods=["GET"])
     def api_config_get():
-        return jsonify(get_config(path=_cfg_path))
+        return jsonify(_get_config_cached())
 
     @app.route("/api/config", methods=["POST"])
     def api_config_post():
@@ -202,6 +219,8 @@ def create_app(watcher, db_path: str, config_path: str | None = None) -> Flask:
             save_config(merged, path=_cfg_path)
         except OSError as exc:
             return jsonify({"error": f"could not save config: {exc}"}), 500
+        nonlocal _cfg_cache
+        _cfg_cache = None  # invalidate so next read picks up the saved file
         return jsonify(merged)
 
     @app.route("/api/config/defaults", methods=["GET"])
@@ -271,7 +290,7 @@ def create_app(watcher, db_path: str, config_path: str | None = None) -> Flask:
                 "run_ended_at":    run_totals_row["ended_at"],
             }
 
-        player_colours = get_config(path=_cfg_path).get("player_colours", {})
+        player_colours = _get_config_cached().get("player_colours", {})
         players = [
             {
                 "username":        row["username"],

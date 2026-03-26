@@ -196,6 +196,10 @@ def get_session_leaderboard(conn: sqlite3.Connection, session_id: int) -> list[s
     """
     Per-player totals for a session: exp earned, levels played, levels survived.
     exp_earned = SUM(level_exp) for levels where the player survived.
+
+    Intentionally separate from get_run_leaderboard: the only difference is
+    the WHERE scope (session_id vs run_id), and merging them would obscure
+    that both queries are used independently across the codebase.
     """
     return conn.execute(
         """
