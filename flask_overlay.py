@@ -19,7 +19,7 @@ import json
 import os
 import sys
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Flask, jsonify, render_template, request
 
@@ -291,7 +291,7 @@ def create_app(watcher, db_path: str, config_path: str | None = None) -> Flask:
             "run_leaderboard": players,
             "run_history":     history_list,
             "run_totals":      totals_data,
-            "server_time":     datetime.now().isoformat(),
+            "server_time":     datetime.now(timezone.utc).isoformat(),
         })
 
     return app

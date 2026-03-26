@@ -8,7 +8,28 @@ import sys
 import pytest
 
 import db
-from flask_overlay import get_app_dir, get_config, save_config, DEFAULT_CONFIG, _deep_merge
+from flask_overlay import get_app_dir, get_config, save_config, DEFAULT_CONFIG, _deep_merge, _rgba_to_css
+
+
+# ---------------------------------------------------------------------------
+# get_app_dir()
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# _rgba_to_css()
+# ---------------------------------------------------------------------------
+
+def test_rgba_to_css_normal():
+    c = {"red": 1.0, "green": 0.5, "blue": 0.0, "alpha": 0.8}
+    assert _rgba_to_css(c) == "rgba(255,128,0,0.8)"
+
+
+def test_rgba_to_css_none_returns_white():
+    assert _rgba_to_css(None) == "rgba(255,255,255,1)"
+
+
+def test_rgba_to_css_missing_keys_default_to_one():
+    assert _rgba_to_css({}) == "rgba(255,255,255,1)"
 
 
 # ---------------------------------------------------------------------------
@@ -296,6 +317,13 @@ def test_api_config_post_returns_500_on_save_failure(client, monkeypatch):
     assert "error" in resp.get_json()
 
 
+def test_api_config_defaults_returns_200_and_default_values(client):
+    resp = client.get("/api/config/defaults")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data == DEFAULT_CONFIG
+
+
 def test_config_page_returns_200(client):
     resp = client.get("/config")
     assert resp.status_code == 200
@@ -410,10 +438,39 @@ def test_api_state_returns_run_history_and_totals(client_and_db):
     assert data["run_totals"]["run_started_at"] == "2024-01-01T00:00:00"
 
 
+def test_api_state_server_time_is_utc(client_and_db):
+    """server_time must include UTC offset so JS Date() parses it correctly."""
+    c, db_path = client_and_db
+    with db.get_conn(db_path) as conn:
+        sid = db.insert_session(conn, "testuser", "2024-01-01T00:00:00+00:00")
+        rid = db.insert_run(conn, "testuser", "2024-01-01T00:00:00+00:00")
+        lid = db.insert_level(conn, rid, sid, 1, 30.0, "2024-01-01T00:01:00+00:00", 100, True, None)
+        db.insert_player_levels(conn, lid, [
+            {"username": "alice", "display_name": "Alice", "survived": True}
+        ])
+    data = c.get("/api/state").get_json()
+    assert "server_time" in data
+    assert "+" in data["server_time"] or data["server_time"].endswith("Z"), (
+        "server_time must carry timezone info for correct JS Date() parsing"
+    )
+
+
 def test_api_state_waiting_has_no_run_history(client):
     data = client.get("/api/state").get_json()
     assert data["status"] == "waiting"
     assert "run_history" not in data
+
+
+def test_api_state_idle_no_levels_returns_empty_history(client_and_db):
+    """Idle mode where the closed session has no levels: run_history is empty, run_totals is None."""
+    c, db_path = client_and_db
+    with db.get_conn(db_path) as conn:
+        sid = db.insert_session(conn, "testuser", "2024-01-01T00:00:00")
+        db.close_session(conn, sid, "2024-01-01T00:10:00")
+    data = c.get("/api/state").get_json()
+    assert data["status"] == "idle"
+    assert data["run_history"] == []
+    assert data["run_totals"] is None
 
 
 def test_api_state_idle_returns_run_history_from_last_run(client_and_db):

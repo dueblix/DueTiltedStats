@@ -154,7 +154,7 @@ def insert_level(
 
 def get_last_level(conn: sqlite3.Connection, run_id: int) -> sqlite3.Row | None:
     return conn.execute(
-        "SELECT * FROM level WHERE run_id = ? ORDER BY level_number DESC LIMIT 1",
+        "SELECT * FROM level WHERE run_id = ? ORDER BY id DESC LIMIT 1",
         (run_id,),
     ).fetchone()
 
