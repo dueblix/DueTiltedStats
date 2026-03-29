@@ -38,6 +38,15 @@
   .pc-remove:hover { background: #fdd; }
   #add-player-colour-btn { margin-top: 8px; padding: 4px 12px; font-size: 0.9em; cursor: pointer; border: 1px solid #aaa; border-radius: 3px; background: #f8f8f8; }
   #add-player-colour-btn:hover { background: #e8e8e8; }
+
+  /* ---- Zone picker ---- */
+  .zone-picker { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; margin: 8px 0; }
+  .zone-picker-mid { display: flex; gap: 4px; align-items: center; }
+  .zone-picker-center { width: 48px; height: 32px; border: 1px dashed #ccc; border-radius: 3px; }
+  .zone-btn { padding: 4px 14px; border: 1px solid #ccc; border-radius: 3px; background: #f8f8f8; cursor: pointer; font-size: 0.85em; }
+  .zone-btn:hover { background: #e8e8e8; }
+  .zone-btn.active { background: #26a; color: #fff; border-color: #26a; }
+  .zone-floating-opts { margin: 4px 0 8px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #fafafa; }
 </style>
 </head>
 <body>
@@ -201,45 +210,61 @@
 
       <label style="margin-top:12px">Columns</label>
       <div id="columns-list"></div>
+
+      <!-- Position -->
+      <details id="sec-lb-position">
+        <summary>Position</summary>
+        <div class="details-body">
+          <div id="lb-position-picker"></div>
+        </div>
+      </details>
     </div>
   </details>
 
-  <!-- Bottom Bar -->
-  <details id="sec-bottom-bar">
+  <!-- Level History -->
+  <details id="sec-level-history">
     <summary>
-      <input type="checkbox" id="bb_enabled"> Bottom Bar
+      <input type="checkbox" id="lh_enabled"> Level History
     </summary>
     <div class="details-body">
       <div class="field-pair">
         <div>
-          <label for="bb_font_size">Font size (px)</label>
-          <input type="number" id="bb_font_size" min="8" max="120">
+          <label for="lh_font_size">Font size (px)</label>
+          <input type="number" id="lh_font_size" min="8" max="120">
         </div>
         <div>
-          <label for="bb_opacity">Opacity (0–1)</label>
-          <input type="number" id="bb_opacity" min="0" max="1" step="0.05">
+          <label for="lh_opacity">Opacity (0–1)</label>
+          <input type="number" id="lh_opacity" min="0" max="1" step="0.05">
         </div>
       </div>
       <div class="inline-row">
-        <label for="bb_font_colour" style="margin:0">Font colour</label>
-        <input type="color" id="bb_font_colour">
+        <label for="lh_font_colour" style="margin:0">Font colour</label>
+        <input type="color" id="lh_font_colour">
       </div>
       <div class="field-pair" style="margin-top:8px">
         <div>
-          <label for="bb_history_rows">History rows</label>
-          <input type="number" id="bb_history_rows" min="1" max="20">
+          <label for="lh_history_rows">History rows</label>
+          <input type="number" id="lh_history_rows" min="1" max="20">
         </div>
       </div>
       <div class="inline-row">
-        <input type="checkbox" id="bb_recent_at_bottom">
-        <label for="bb_recent_at_bottom" style="margin:0">Most recent row at bottom</label>
+        <input type="checkbox" id="lh_recent_at_bottom">
+        <label for="lh_recent_at_bottom" style="margin:0">Most recent row at bottom</label>
       </div>
       <div class="inline-row">
-        <input type="checkbox" id="bb_show_total_row">
-        <label for="bb_show_total_row" style="margin:0">Show total row</label>
+        <input type="checkbox" id="lh_show_total_row">
+        <label for="lh_show_total_row" style="margin:0">Show total row</label>
       </div>
       <label style="margin-top:12px">Cells</label>
       <div id="cells-list"></div>
+
+      <!-- Position -->
+      <details id="sec-lh-position">
+        <summary>Position</summary>
+        <div class="details-body">
+          <div id="lh-position-picker"></div>
+        </div>
+      </details>
     </div>
   </details>
 
@@ -372,18 +397,119 @@
     // Columns
     buildReorderableList('columns-list', cfg.leaderboard.columns, 'name', 'col', 'moveColumn');
 
-    // Bottom bar
-    document.getElementById('bb_enabled').checked          = cfg.bottom_bar.enabled;
-    document.getElementById('bb_opacity').value            = cfg.bottom_bar.opacity;
-    document.getElementById('bb_font_size').value          = cfg.bottom_bar.font_size;
-    document.getElementById('bb_font_colour').value        = cfg.bottom_bar.font_colour;
-    document.getElementById('bb_history_rows').value       = cfg.bottom_bar.history_rows ?? 5;
-    document.getElementById('bb_recent_at_bottom').checked = cfg.bottom_bar.recent_at_bottom !== false;
-    document.getElementById('bb_show_total_row').checked   = cfg.bottom_bar.show_total_row !== false;
-    buildReorderableList('cells-list', cfg.bottom_bar.cells || [], 'level', 'cell', 'moveCellRow');
+    // Leaderboard position picker
+    buildZonePicker('leaderboard', 'lb-position-picker');
+
+    // Level history
+    document.getElementById('lh_enabled').checked          = cfg.level_history.enabled;
+    document.getElementById('lh_opacity').value            = cfg.level_history.opacity;
+    document.getElementById('lh_font_size').value          = cfg.level_history.font_size;
+    document.getElementById('lh_font_colour').value        = cfg.level_history.font_colour;
+    document.getElementById('lh_history_rows').value       = cfg.level_history.history_rows ?? 5;
+    document.getElementById('lh_recent_at_bottom').checked = cfg.level_history.recent_at_bottom !== false;
+    document.getElementById('lh_show_total_row').checked   = cfg.level_history.show_total_row !== false;
+    buildReorderableList('cells-list', cfg.level_history.cells || [], 'level', 'cell', 'moveCellRow');
+
+    // Level history position picker
+    buildZonePicker('level_history', 'lh-position-picker');
 
     // Player colours
     buildPlayerColourRows(cfg.player_colours || {});
+  }
+
+  // ---------------------------------------------------------------------------
+  // Zone picker — shared component for leaderboard and level history position.
+  // paneKey: 'leaderboard' or 'level_history'
+  // containerId: id of the mount-point div
+  // ---------------------------------------------------------------------------
+  function buildZonePicker(paneKey, containerId) {
+    const container = document.getElementById(containerId);
+    const pos = (currentCfg && currentCfg[paneKey] && currentCfg[paneKey].position) || {};
+    const isFloating = pos.mode === 'floating';
+    const activeZone = isFloating ? 'floating' : (pos.zone || 'right');
+
+    container.innerHTML = `
+      <div class="zone-picker" id="zone-picker-${paneKey}">
+        <button type="button" class="zone-btn" data-zone="top">Top</button>
+        <div class="zone-picker-mid">
+          <button type="button" class="zone-btn" data-zone="left">Left</button>
+          <div class="zone-picker-center"></div>
+          <button type="button" class="zone-btn" data-zone="right">Right</button>
+        </div>
+        <button type="button" class="zone-btn" data-zone="bottom">Bottom</button>
+        <button type="button" class="zone-btn" data-zone="floating">Floating</button>
+      </div>
+      <div class="zone-floating-opts" id="zone-floating-opts-${paneKey}" style="display:${isFloating ? '' : 'none'}">
+        <label for="zone-anchor-${paneKey}">Anchor corner</label>
+        <select id="zone-anchor-${paneKey}">
+          <option value="top-left">Top left</option>
+          <option value="top-right">Top right</option>
+          <option value="bottom-left">Bottom left</option>
+          <option value="bottom-right">Bottom right</option>
+        </select>
+        <div class="field-pair" style="margin-top:6px">
+          <div>
+            <label for="zone-offset-x-${paneKey}">Offset X (px)</label>
+            <input type="number" id="zone-offset-x-${paneKey}" min="-500" max="500">
+          </div>
+          <div>
+            <label for="zone-offset-y-${paneKey}">Offset Y (px)</label>
+            <input type="number" id="zone-offset-y-${paneKey}" min="-500" max="500">
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Set active zone button
+    container.querySelectorAll('.zone-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.zone === activeZone);
+    });
+
+    // Set floating option values
+    document.getElementById(`zone-anchor-${paneKey}`).value       = pos.anchor   || 'top-right';
+    document.getElementById(`zone-offset-x-${paneKey}`).value     = pos.offset_x ?? 0;
+    document.getElementById(`zone-offset-y-${paneKey}`).value     = pos.offset_y ?? 0;
+
+    // Zone button click handler
+    container.querySelectorAll('.zone-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        container.querySelectorAll('.zone-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`zone-floating-opts-${paneKey}`).style.display =
+          btn.dataset.zone === 'floating' ? '' : 'none';
+        autoSave();
+      });
+    });
+
+    // Floating sub-option handlers
+    document.getElementById(`zone-anchor-${paneKey}`).addEventListener('change', autoSave);
+    document.getElementById(`zone-offset-x-${paneKey}`).addEventListener('change', autoSave);
+    document.getElementById(`zone-offset-y-${paneKey}`).addEventListener('change', autoSave);
+  }
+
+  // Reads the current state of a pane's zone picker and returns a position object.
+  function collectPosition(paneKey) {
+    const picker = document.getElementById(`zone-picker-${paneKey}`);
+    if (!picker) return currentCfg[paneKey]?.position || {};
+    const activeBtn = picker.querySelector('.zone-btn.active');
+    const activeZone = activeBtn ? activeBtn.dataset.zone : 'right';
+    const fallbackPos = currentCfg[paneKey]?.position || {};
+    if (activeZone === 'floating') {
+      return {
+        mode:     'floating',
+        zone:     fallbackPos.zone     || 'right',
+        anchor:   document.getElementById(`zone-anchor-${paneKey}`)?.value   || 'top-right',
+        offset_x: parseInt(document.getElementById(`zone-offset-x-${paneKey}`)?.value ?? 0),
+        offset_y: parseInt(document.getElementById(`zone-offset-y-${paneKey}`)?.value ?? 0),
+      };
+    }
+    return {
+      mode:     'tiled',
+      zone:     activeZone,
+      anchor:   fallbackPos.anchor   || 'top-right',
+      offset_x: fallbackPos.offset_x ?? 0,
+      offset_y: fallbackPos.offset_y ?? 0,
+    };
   }
 
   function buildPlayerColourRows(playerColours) {
@@ -516,16 +642,18 @@
         cell_padding_v:     numVal('lb_cell_padding_v',   currentCfg.leaderboard.cell_padding_v),
         cell_padding_h:     numVal('lb_cell_padding_h',   currentCfg.leaderboard.cell_padding_h),
         columns,
+        position: collectPosition('leaderboard'),
       },
-      bottom_bar: {
-        enabled:          document.getElementById('bb_enabled').checked,
-        opacity:          numVal('bb_opacity', currentCfg.bottom_bar.opacity),
-        font_size:        numVal('bb_font_size', currentCfg.bottom_bar.font_size),
-        font_colour:      document.getElementById('bb_font_colour').value,
-        history_rows:     numVal('bb_history_rows', currentCfg.bottom_bar.history_rows ?? 5),
-        recent_at_bottom: document.getElementById('bb_recent_at_bottom').checked,
-        show_total_row:   document.getElementById('bb_show_total_row').checked,
+      level_history: {
+        enabled:          document.getElementById('lh_enabled').checked,
+        opacity:          numVal('lh_opacity', currentCfg.level_history.opacity),
+        font_size:        numVal('lh_font_size', currentCfg.level_history.font_size),
+        font_colour:      document.getElementById('lh_font_colour').value,
+        history_rows:     numVal('lh_history_rows', currentCfg.level_history.history_rows ?? 5),
+        recent_at_bottom: document.getElementById('lh_recent_at_bottom').checked,
+        show_total_row:   document.getElementById('lh_show_total_row').checked,
         cells:            collectCells(),
+        position: collectPosition('level_history'),
       },
       player_colours: collectPlayerColours(),
     };
@@ -545,7 +673,7 @@
     const cells = [];
     for (const row of document.querySelectorAll('#cells-list .col-row')) {
       const key = row.dataset.key;
-      const orig = (currentCfg.bottom_bar.cells || []).find(c => c.key === key)?.label || key;
+      const orig = (currentCfg.level_history.cells || []).find(c => c.key === key)?.label || key;
       cells.push({
         key,
         label:   document.getElementById('cell_label_' + key).value.trim() || orig,
@@ -587,8 +715,8 @@
     'row_bg_colour', 'row_bg_alt_enabled', 'row_bg_alt_opacity', 'row_bg_alt_colour',
     'row_separator', 'lb_show_session_label',
     'lb_row_height', 'lb_cell_padding_v', 'lb_cell_padding_h',
-    'bb_enabled', 'bb_opacity', 'bb_font_size', 'bb_font_colour',
-    'bb_history_rows', 'bb_recent_at_bottom', 'bb_show_total_row',
+    'lh_enabled', 'lh_opacity', 'lh_font_size', 'lh_font_colour',
+    'lh_history_rows', 'lh_recent_at_bottom', 'lh_show_total_row',
   ].forEach(id => document.getElementById(id).addEventListener('change', autoSave));
 
   document.getElementById('reset-btn').addEventListener('click', async () => {
@@ -605,7 +733,7 @@
   });
 
   // Prevent enable checkboxes inside <summary> from toggling the <details>
-  ['lb_enabled', 'bb_enabled', 'hdr_override_enabled', 'row_bg_alt_enabled'].forEach(id => {
+  ['lb_enabled', 'lh_enabled', 'hdr_override_enabled', 'row_bg_alt_enabled'].forEach(id => {
     document.getElementById(id).addEventListener('click', e => e.stopPropagation());
   });
 
