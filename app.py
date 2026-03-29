@@ -5,6 +5,8 @@ Run:
     python app.py
 
 Overlay available at:  http://127.0.0.1:5000/overlay
+Config available at:   http://127.0.0.1:5000/config
+History available at:  http://127.0.0.1:5000/history
 API state at:          http://127.0.0.1:5000/api/state
 
 Required environment variables:
@@ -42,8 +44,9 @@ def main() -> None:
 
     app = create_app(watcher, db_path=DB_PATH)
 
-    print(f"[app] Overlay at http://{FLASK_HOST}:{FLASK_PORT}/overlay")
-    print(f"[app] Config  at http://{FLASK_HOST}:{FLASK_PORT}/config")
+    print(f"[app] Overlay  at http://{FLASK_HOST}:{FLASK_PORT}/overlay")
+    print(f"[app] Config   at http://{FLASK_HOST}:{FLASK_PORT}/config")
+    print(f"[app] History  at http://{FLASK_HOST}:{FLASK_PORT}/history")
     print("[app] Press Ctrl+C to stop.")
 
     try:
