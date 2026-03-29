@@ -198,13 +198,13 @@
     //   row_height       — explicit row height override
     //   cell_padding_v   — vertical padding affects row height
     //   cols             — visible column set and labels
-    //   pos              — zone/mode change affects available height for row calc
+    //   pos              — zone/mode/fill change affects available height for row calc
     // Excluded: colours, opacity, text-transform — none affect row height.
     const hdr = lb.header_font_override || {};
     const headerFontSize = hdr.enabled ? hdr.font_size : lb.font_size;
     const cols = lb.columns.filter(c => c.visible).map(c => `${c.key}:${c.label}`).join(',');
     const pos = lb.position || {};
-    return `${lb.font_size}|${headerFontSize}|${lb.row_height}|${lb.cell_padding_v}|${cols}|${pos.mode}|${pos.zone}`;
+    return `${lb.font_size}|${headerFontSize}|${lb.row_height}|${lb.cell_padding_v}|${cols}|${pos.mode}|${pos.zone}|${pos.fill ?? true}`;
   }
 
   function lhLayoutSig(lh) {
@@ -282,18 +282,21 @@
     // Whether a pane's position has fill enabled (default true).
     function isFill(paneCfg) { return paneCfg.position?.fill !== false; }
 
-    // Row track size for top/bottom zones: 1fr if the pane there fills, else auto.
+    // Row track size for top/bottom zones: 1fr if the pane fills, fit-content(40vh)
+    // otherwise. fit-content caps the auto growth so the fill pane always gets the
+    // majority of space; overflow:hidden on the pane clips any excess content.
+    const FIT_TRACK = 'fit-content(40vh)';
     function rowSize(zone) {
-      if (lbZone === zone) return isFill(lb) ? '1fr' : 'auto';
-      if (lhZone === zone) return isFill(lh) ? '1fr' : 'auto';
+      if (lbZone === zone) return isFill(lb) ? '1fr' : FIT_TRACK;
+      if (lhZone === zone) return isFill(lh) ? '1fr' : FIT_TRACK;
       return '0';
     }
 
-    // Center row: 1fr if any side-zone pane fills, auto otherwise.
+    // Center row: 1fr if any side-zone pane fills, fit-content(40vh) otherwise.
     const lbInSide = lbZone && ['left', 'right'].includes(lbZone);
     const lhInSide = lhZone && ['left', 'right'].includes(lhZone);
     const centerFill = (lbInSide && isFill(lb)) || (lhInSide && isFill(lh));
-    const centerRow  = (lbInSide || lhInSide) ? (centerFill ? '1fr' : 'auto') : '1fr';
+    const centerRow  = (lbInSide || lhInSide) ? (centerFill ? '1fr' : FIT_TRACK) : '1fr';
 
     grid.style.gridTemplateColumns = `${colSize('left')} 1fr ${colSize('right')}`;
     grid.style.gridTemplateRows    = `${rowSize('top')} ${centerRow} ${rowSize('bottom')}`;
