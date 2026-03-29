@@ -10,7 +10,6 @@
 
   body {
     --font-family: 'Courier New', monospace;
-    --panel-width: 310px;
     --panel-opacity: 0.6;   /* used by #status background; rows use hexToRgba() instead */
     --row-font-size: 40px;
     --row-font-colour: #ffffff;
@@ -25,9 +24,9 @@
     --cell-padding-v: 4px;
     --cell-padding-h: 6px;
     --panel-border-radius: 0px;
-    --bottom-bar-opacity: 0.75;
-    --bottom-bar-font-size: 20px;
-    --bottom-bar-font-colour: #ffffff;
+    --lh-opacity: 0.75;
+    --lh-font-size: 20px;
+    --lh-font-colour: #ffffff;
 
     background: transparent;
     font-family: var(--font-family);
@@ -39,14 +38,21 @@
     position: relative;
   }
 
-  /* ---- Right panel: leaderboard ---- */
-  #right-panel {
+  /* ---- Grid container: fills the viewport, all panes live inside ---- */
+  #overlay-grid {
     position: absolute;
-    top: 0;
-    bottom: 0;
-    right: 0;
-    width: var(--panel-width);
-    z-index: 1;
+    inset: 0;
+    display: grid;
+    /* Named areas — track sizes are set dynamically by buildGridTemplate() */
+    grid-template-areas:
+      "top    top    top"
+      "left   center right"
+      "bottom bottom bottom";
+    overflow: hidden;
+  }
+
+  /* ---- Leaderboard pane ---- */
+  #leaderboard-pane {
     border-radius: var(--panel-border-radius);
     overflow: hidden;
   }
@@ -117,13 +123,9 @@
     padding-right: 10px;
   }
 
-  /* ---- Bottom bar: level history table ---- */
-  #bottom-bar {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: rgba(0, 0, 0, var(--bottom-bar-opacity));
+  /* ---- Level history pane ---- */
+  #level-history-pane {
+    background: rgba(0, 0, 0, var(--lh-opacity));
     display: none;
   }
 
@@ -144,8 +146,8 @@
   }
 
   #level-history tbody td {
-    color: var(--bottom-bar-font-colour);
-    font-size: var(--bottom-bar-font-size);
+    color: var(--lh-font-colour);
+    font-size: var(--lh-font-size);
     padding: 2px 8px;
     text-align: center;
     white-space: nowrap;
@@ -159,21 +161,23 @@
 </head>
 <body>
 
-  <div id="right-panel">
-    <div id="status">Waiting for game...</div>
-    <table id="leaderboard">
-      <thead>
-        <tr id="lb-head"></tr>
-      </thead>
-      <tbody id="lb-body"></tbody>
-    </table>
-  </div>
+  <div id="overlay-grid">
+    <div id="leaderboard-pane">
+      <div id="status">Waiting for game...</div>
+      <table id="leaderboard">
+        <thead>
+          <tr id="lb-head"></tr>
+        </thead>
+        <tbody id="lb-body"></tbody>
+      </table>
+    </div>
 
-  <div id="bottom-bar">
-    <table id="level-history">
-      <thead><tr id="lh-head"></tr></thead>
-      <tbody id="lh-body"></tbody>
-    </table>
+    <div id="level-history-pane">
+      <table id="level-history">
+        <thead><tr id="lh-head"></tr></thead>
+        <tbody id="lh-body"></tbody>
+      </table>
+    </div>
   </div>
 
 <script>
@@ -181,10 +185,10 @@
 
   let rowCount = null;
   let activeColumns = [];  // [{key, label}] for visible leaderboard columns in order
-  let activeCells = [];    // [{key, label}] for visible bottom-bar cells in order
+  let activeCells = [];    // [{key, label}] for visible level-history cells in order
   let currentConfig = null;
   let lastLayoutSig = null;   // detects layout-affecting leaderboard config changes
-  let lastBbLayoutSig = null; // detects bottom-bar cell/font changes
+  let lastLhLayoutSig = null; // detects level-history cell/font changes
 
   function layoutSig(lb) {
     // Captures fields that affect row height or column structure, so the header
@@ -194,16 +198,18 @@
     //   row_height       — explicit row height override
     //   cell_padding_v   — vertical padding affects row height
     //   cols             — visible column set and labels
-    // Excluded: panel_width, colours, opacity, text-transform — none affect row height.
+    //   pos              — zone/mode change affects available height for row calc
+    // Excluded: colours, opacity, text-transform — none affect row height.
     const hdr = lb.header_font_override || {};
     const headerFontSize = hdr.enabled ? hdr.font_size : lb.font_size;
     const cols = lb.columns.filter(c => c.visible).map(c => `${c.key}:${c.label}`).join(',');
-    return `${lb.font_size}|${headerFontSize}|${lb.row_height}|${lb.cell_padding_v}|${cols}`;
+    const pos = lb.position || {};
+    return `${lb.font_size}|${headerFontSize}|${lb.row_height}|${lb.cell_padding_v}|${cols}|${pos.mode}|${pos.zone}`;
   }
 
-  function bbLayoutSig(bb) {
-    const cells = (bb.cells || []).filter(c => c.visible).map(c => `${c.key}:${c.label}`).join(',');
-    return `${bb.font_size}|${cells}`;
+  function lhLayoutSig(lh) {
+    const cells = (lh.cells || []).filter(c => c.visible).map(c => `${c.key}:${c.label}`).join(',');
+    return `${lh.font_size}|${cells}`;
   }
 
   // Maps each config column key to the matching field name in the /api/state
@@ -237,6 +243,85 @@
     return `rgba(${r},${g},${b},${alpha})`;
   }
 
+  // ---------------------------------------------------------------------------
+  // buildGridTemplate — computes and applies the CSS grid layout from config.
+  //
+  // Left/right zones use the leaderboard's panel_width for the column track.
+  // Top/bottom zones use 'auto' (size to content).
+  // Disabled or floating panes collapse their track to '0'.
+  // Floating panes are absolutely positioned relative to the overlay-grid.
+  //
+  // Note: a floating level-history pane has no explicit width and will size to
+  // content, which may span the full viewport on wide tables. This is a known
+  // rough edge; explicit width config can be added later if needed.
+  // ---------------------------------------------------------------------------
+  function buildGridTemplate(cfg) {
+    const grid   = document.getElementById('overlay-grid');
+    const lbPane = document.getElementById('leaderboard-pane');
+    const lhPane = document.getElementById('level-history-pane');
+    const lb = cfg.leaderboard;
+    const lh = cfg.level_history;
+
+    // Returns the zone for a pane if it is enabled and tiled, else null.
+    function tiledZone(paneCfg) {
+      return paneCfg.enabled && paneCfg.position?.mode !== 'floating'
+        ? (paneCfg.position?.zone || 'right')
+        : null;
+    }
+
+    const lbZone = tiledZone(lb);
+    const lhZone = tiledZone(lh);
+
+    // Column track size for a given zone ('left' or 'right').
+    function colSize(zone) {
+      if (lbZone === zone) return lb.panel_width + 'px';
+      if (lhZone === zone) return 'auto';
+      return '0';
+    }
+
+    // Row track size for a given zone ('top' or 'bottom').
+    function rowSize(zone) {
+      if (lbZone === zone || lhZone === zone) return 'auto';
+      return '0';
+    }
+
+    grid.style.gridTemplateColumns = `${colSize('left')} 1fr ${colSize('right')}`;
+    grid.style.gridTemplateRows    = `${rowSize('top')} 1fr ${rowSize('bottom')}`;
+
+    // Apply positioning and grid area to each pane.
+    function applyPane(pane, paneCfg) {
+      if (!paneCfg.enabled) {
+        pane.style.display = 'none';
+        return;
+      }
+
+      const pos = paneCfg.position || {};
+      if (pos.mode === 'floating') {
+        pane.style.position = 'absolute';
+        pane.style.gridArea = '';
+        const anchor = pos.anchor || 'top-right';
+        const [v, h] = anchor.split('-');
+        const ox = pos.offset_x ?? 0;
+        const oy = pos.offset_y ?? 0;
+        pane.style.top    = v === 'top'    ? oy + 'px' : '';
+        pane.style.bottom = v === 'bottom' ? oy + 'px' : '';
+        pane.style.left   = h === 'left'   ? ox + 'px' : '';
+        pane.style.right  = h === 'right'  ? ox + 'px' : '';
+      } else {
+        pane.style.position = '';
+        pane.style.top = pane.style.bottom = pane.style.left = pane.style.right = '';
+        pane.style.gridArea = pos.zone || 'right';
+      }
+    }
+
+    applyPane(lbPane, lb);
+    // Level-history pane: display is also controlled by refresh() based on data
+    // presence. applyPane only handles the disabled case here; refresh() manages
+    // the enabled-but-no-data case.
+    if (!lh.enabled) lhPane.style.display = 'none';
+    else applyPane(lhPane, lh);
+  }
+
   async function applyConfig() {
     let cfg;
     try {
@@ -250,15 +335,13 @@
     currentConfig = cfg;
     const body = document.body;
     const lb   = cfg.leaderboard;
-    const bb   = cfg.bottom_bar;
+    const lh   = cfg.level_history;
 
-    // leaderboard.enabled is config-only: hide the panel regardless of game state.
-    // (bottom_bar.enabled is handled in refresh() where game state is also checked.)
-    document.getElementById('right-panel').style.display = lb.enabled ? '' : 'none';
+    // Apply grid layout and pane positioning from config.
+    buildGridTemplate(cfg);
 
     // --- Global + leaderboard layout ---
     body.style.setProperty('--font-family',     cfg.global.font_family);
-    body.style.setProperty('--panel-width',      lb.panel_width + 'px');
     body.style.setProperty('--panel-opacity',    lb.opacity);
     body.style.setProperty('--row-font-size',    lb.font_size + 'px');
     body.style.setProperty('--row-font-colour',  lb.font_colour);
@@ -293,10 +376,10 @@
     body.style.setProperty('--cell-padding-h',        (lb.cell_padding_h       ?? 6)  + 'px');
     body.style.setProperty('--panel-border-radius',   (lb.panel_border_radius  ?? 0)  + 'px');
 
-    // --- Bottom bar ---
-    body.style.setProperty('--bottom-bar-opacity',      bb.opacity);
-    body.style.setProperty('--bottom-bar-font-size',    bb.font_size + 'px');
-    body.style.setProperty('--bottom-bar-font-colour',  bb.font_colour);
+    // --- Level history ---
+    body.style.setProperty('--lh-opacity',      lh.opacity);
+    body.style.setProperty('--lh-font-size',    lh.font_size + 'px');
+    body.style.setProperty('--lh-font-colour',  lh.font_colour);
 
     // Rebuild leaderboard column header and reset row count only when layout actually changed
     const sig = layoutSig(lb);
@@ -314,11 +397,11 @@
       rowCount = null;
     }
 
-    // Rebuild bottom-bar table header when cells or font change
-    const bbSig = bbLayoutSig(bb);
-    if (bbSig !== lastBbLayoutSig) {
-      lastBbLayoutSig = bbSig;
-      activeCells = (bb.cells || []).filter(c => c.visible);
+    // Rebuild level-history table header when cells or font change
+    const lhSig = lhLayoutSig(lh);
+    if (lhSig !== lastLhLayoutSig) {
+      lastLhLayoutSig = lhSig;
+      activeCells = (lh.cells || []).filter(c => c.visible);
       const lhHead = document.getElementById('lh-head');
       lhHead.innerHTML = '';
       for (const cell of activeCells) {
@@ -330,7 +413,7 @@
   }
 
   function calcRowCount() {
-    const panel    = document.getElementById('right-panel');
+    const panel    = document.getElementById('leaderboard-pane');
     const thead    = document.querySelector('#leaderboard thead tr');
     const available = panel.clientHeight - thead.offsetHeight;
     const tbody    = document.getElementById('lb-body');
@@ -401,12 +484,12 @@
   }
 
   function renderLevelHistory(data) {
-    const bb = currentConfig.bottom_bar;
+    const lh = currentConfig.level_history;
     const tbody = document.getElementById('lh-body');
     tbody.innerHTML = '';
 
-    let rows = (data.run_history || []).slice(0, bb.history_rows ?? 5);
-    if (bb.recent_at_bottom !== false) rows = rows.slice().reverse();
+    let rows = (data.run_history || []).slice(0, lh.history_rows ?? 5);
+    if (lh.recent_at_bottom !== false) rows = rows.slice().reverse();
 
     for (const lvl of rows) {
       const tr = document.createElement('tr');
@@ -414,7 +497,7 @@
       tbody.appendChild(tr);
     }
 
-    if ((bb.show_total_row !== false) && data.run_totals) {
+    if ((lh.show_total_row !== false) && data.run_totals) {
       const tot = data.run_totals;
       const isActive = data.status === 'active';
       const tr = document.createElement('tr');
@@ -451,11 +534,11 @@
     }
 
     const statusDiv = document.getElementById('status');
-    const bottomBar = document.getElementById('bottom-bar');
+    const lhPane    = document.getElementById('level-history-pane');
 
     if (data.status === 'waiting') {
       renderRows([]);
-      bottomBar.style.display = 'none';
+      lhPane.style.display = 'none';
       statusDiv.style.display = 'block';
       statusDiv.textContent   = 'Waiting for game...';
       return;
@@ -465,16 +548,16 @@
     statusDiv.textContent   = data.status === 'idle' ? 'PREVIOUS SESSION' : '';
     statusDiv.style.display = data.status === 'idle' && showLabel ? 'block' : 'none';
 
-    // --- Bottom bar ---
+    // --- Level history ---
     // Show when config enables it AND there is history data to display.
     // currentConfig is null only if applyConfig hasn't succeeded yet on first tick.
     const history = data.run_history || [];
     const hasTotals = data.run_totals && data.run_totals.level_count > 0;
-    if (currentConfig?.bottom_bar.enabled && (history.length > 0 || hasTotals)) {
+    if (currentConfig?.level_history?.enabled && (history.length > 0 || hasTotals)) {
       renderLevelHistory(data);
-      bottomBar.style.display = 'block';
+      lhPane.style.display = '';
     } else {
-      bottomBar.style.display = 'none';
+      lhPane.style.display = 'none';
     }
 
     // --- Leaderboard ---
