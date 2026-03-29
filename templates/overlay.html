@@ -279,14 +279,24 @@
       return '0';
     }
 
-    // Row track size for a given zone ('top' or 'bottom').
+    // Whether a pane's position has fill enabled (default true).
+    function isFill(paneCfg) { return paneCfg.position?.fill !== false; }
+
+    // Row track size for top/bottom zones: 1fr if the pane there fills, else auto.
     function rowSize(zone) {
-      if (lbZone === zone || lhZone === zone) return 'auto';
+      if (lbZone === zone) return isFill(lb) ? '1fr' : 'auto';
+      if (lhZone === zone) return isFill(lh) ? '1fr' : 'auto';
       return '0';
     }
 
+    // Center row: 1fr if any side-zone pane fills, auto otherwise.
+    const lbInSide = lbZone && ['left', 'right'].includes(lbZone);
+    const lhInSide = lhZone && ['left', 'right'].includes(lhZone);
+    const centerFill = (lbInSide && isFill(lb)) || (lhInSide && isFill(lh));
+    const centerRow  = (lbInSide || lhInSide) ? (centerFill ? '1fr' : 'auto') : '1fr';
+
     grid.style.gridTemplateColumns = `${colSize('left')} 1fr ${colSize('right')}`;
-    grid.style.gridTemplateRows    = `${rowSize('top')} 1fr ${rowSize('bottom')}`;
+    grid.style.gridTemplateRows    = `${rowSize('top')} ${centerRow} ${rowSize('bottom')}`;
 
     // Apply positioning and grid area to each pane.
     function applyPane(pane, paneCfg) {
@@ -300,6 +310,7 @@
       if (pos.mode === 'floating') {
         pane.style.position = 'absolute';
         pane.style.gridArea = '';
+        pane.style.overflow = '';
         const anchor = pos.anchor || 'top-right';
         const [v, h] = anchor.split('-');
         const ox = pos.offset_x ?? 0;
@@ -312,6 +323,7 @@
         pane.style.position = '';
         pane.style.top = pane.style.bottom = pane.style.left = pane.style.right = '';
         pane.style.gridArea = pos.zone || 'right';
+        pane.style.overflow = 'hidden';
       }
     }
 

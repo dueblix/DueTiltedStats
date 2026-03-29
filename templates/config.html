@@ -439,6 +439,12 @@
         <button type="button" class="zone-btn" data-zone="bottom">Bottom</button>
         <button type="button" class="zone-btn" data-zone="floating">Floating</button>
       </div>
+      <div class="zone-tiled-opts" id="zone-tiled-opts-${paneKey}" style="display:${isFloating ? 'none' : ''}">
+        <label style="display:flex;align-items:center;gap:6px;margin-top:6px;cursor:pointer">
+          <input type="checkbox" id="zone-fill-${paneKey}">
+          Stretch to fill available space
+        </label>
+      </div>
       <div class="zone-floating-opts" id="zone-floating-opts-${paneKey}" style="display:${isFloating ? '' : 'none'}">
         <label for="zone-anchor-${paneKey}">Anchor corner</label>
         <select id="zone-anchor-${paneKey}">
@@ -465,6 +471,9 @@
       btn.classList.toggle('active', btn.dataset.zone === activeZone);
     });
 
+    // Set tiled option values
+    document.getElementById(`zone-fill-${paneKey}`).checked = pos.fill !== false;
+
     // Set floating option values
     document.getElementById(`zone-anchor-${paneKey}`).value       = pos.anchor   || 'top-right';
     document.getElementById(`zone-offset-x-${paneKey}`).value     = pos.offset_x ?? 0;
@@ -475,11 +484,15 @@
       btn.addEventListener('click', () => {
         container.querySelectorAll('.zone-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        document.getElementById(`zone-floating-opts-${paneKey}`).style.display =
-          btn.dataset.zone === 'floating' ? '' : 'none';
+        const floating = btn.dataset.zone === 'floating';
+        document.getElementById(`zone-tiled-opts-${paneKey}`).style.display   = floating ? 'none' : '';
+        document.getElementById(`zone-floating-opts-${paneKey}`).style.display = floating ? '' : 'none';
         autoSave();
       });
     });
+
+    // Tiled sub-option handler
+    document.getElementById(`zone-fill-${paneKey}`).addEventListener('change', autoSave);
 
     // Floating sub-option handlers
     document.getElementById(`zone-anchor-${paneKey}`).addEventListener('change', autoSave);
@@ -498,6 +511,7 @@
       return {
         mode:     'floating',
         zone:     fallbackPos.zone     || 'right',
+        fill:     fallbackPos.fill     ?? true,
         anchor:   document.getElementById(`zone-anchor-${paneKey}`)?.value   || 'top-right',
         offset_x: parseInt(document.getElementById(`zone-offset-x-${paneKey}`)?.value ?? 0),
         offset_y: parseInt(document.getElementById(`zone-offset-y-${paneKey}`)?.value ?? 0),
@@ -506,6 +520,7 @@
     return {
       mode:     'tiled',
       zone:     activeZone,
+      fill:     document.getElementById(`zone-fill-${paneKey}`)?.checked ?? true,
       anchor:   fallbackPos.anchor   || 'top-right',
       offset_x: fallbackPos.offset_x ?? 0,
       offset_y: fallbackPos.offset_y ?? 0,

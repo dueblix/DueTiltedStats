@@ -448,12 +448,12 @@ def test_get_config_old_bottom_bar_key_falls_back_to_level_history_defaults(tmp_
 
 def test_default_config_leaderboard_has_position():
     pos = DEFAULT_CONFIG["leaderboard"]["position"]
-    assert pos == {"mode": "tiled", "zone": "right", "anchor": "top-right", "offset_x": 0, "offset_y": 0}
+    assert pos == {"mode": "tiled", "zone": "right", "fill": True, "anchor": "top-right", "offset_x": 0, "offset_y": 0}
 
 
 def test_default_config_level_history_has_position():
     pos = DEFAULT_CONFIG["level_history"]["position"]
-    assert pos == {"mode": "tiled", "zone": "bottom", "anchor": "bottom-right", "offset_x": 0, "offset_y": 0}
+    assert pos == {"mode": "tiled", "zone": "bottom", "fill": False, "anchor": "bottom-right", "offset_x": 0, "offset_y": 0}
 
 
 def test_get_config_partial_position_fills_missing_keys(tmp_path):
@@ -467,6 +467,22 @@ def test_get_config_partial_position_fills_missing_keys(tmp_path):
     assert "anchor" in pos
     assert "offset_x" in pos
     assert "offset_y" in pos
+
+
+def test_position_fill_persists_via_api(client):
+    """fill flag round-trips through POST /api/config."""
+    client.post("/api/config", json={"level_history": {"position": {"fill": True}}})
+    data = client.get("/api/config").get_json()
+    assert data["level_history"]["position"]["fill"] is True
+
+
+def test_position_fill_defaults(tmp_path):
+    """fill defaults: leaderboard True, level_history False."""
+    p = tmp_path / "config.json"
+    p.write_text(json.dumps({}))
+    cfg = get_config(path=str(p))
+    assert cfg["leaderboard"]["position"]["fill"] is True
+    assert cfg["level_history"]["position"]["fill"] is False
 
 
 def test_api_config_post_leaderboard_position_persists(client):

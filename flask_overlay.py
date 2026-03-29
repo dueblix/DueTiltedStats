@@ -72,6 +72,7 @@ DEFAULT_CONFIG = {
         "position": {
             "mode": "tiled",
             "zone": "right",
+            "fill": True,
             "anchor": "top-right",
             "offset_x": 0,
             "offset_y": 0,
@@ -94,6 +95,7 @@ DEFAULT_CONFIG = {
         "position": {
             "mode": "tiled",
             "zone": "bottom",
+            "fill": False,
             "anchor": "bottom-right",
             "offset_x": 0,
             "offset_y": 0,
