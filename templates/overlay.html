@@ -189,6 +189,7 @@
   let currentConfig = null;
   let lastLayoutSig = null;   // detects layout-affecting leaderboard config changes
   let lastLhLayoutSig = null; // detects level-history cell/font changes
+  let lastLhVisible = false;  // detects lh show/hide so rowCount resets when lb height changes
 
   function layoutSig(lb) {
     // Captures fields that affect row height or column structure, so the header
@@ -445,10 +446,14 @@
   }
 
   function renderRows(players) {
-    if (!rowCount) rowCount = calcRowCount();
+    const lbFill = currentConfig?.leaderboard?.position?.fill !== false;
+    // Fill mode: measure available height and render exactly that many rows (including
+    // blank rows to pad the pane). Fit mode: render only real players — the pane
+    // auto-sizes to content and fit-content(40vh) caps/clips it.
+    const limit = lbFill ? (rowCount || (rowCount = calcRowCount())) : players.length;
     const tbody = document.getElementById('lb-body');
     tbody.innerHTML = '';
-    for (let i = 0; i < rowCount; i++) {
+    for (let i = 0; i < limit; i++) {
       const p = players[i];
       const tr = document.createElement('tr');
       if (p) {
@@ -569,7 +574,12 @@
     // currentConfig is null only if applyConfig hasn't succeeded yet on first tick.
     const history = data.run_history || [];
     const hasTotals = data.run_totals && data.run_totals.level_count > 0;
-    if (currentConfig?.level_history?.enabled && (history.length > 0 || hasTotals)) {
+    const lhVisible = !!(currentConfig?.level_history?.enabled && (history.length > 0 || hasTotals));
+    if (lhVisible !== lastLhVisible) {
+      lastLhVisible = lhVisible;
+      rowCount = null; // lh show/hide changes lb's available height — recalculate
+    }
+    if (lhVisible) {
       renderLevelHistory(data);
       lhPane.style.display = 'block';
     } else {
