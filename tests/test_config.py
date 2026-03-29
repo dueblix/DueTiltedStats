@@ -118,7 +118,7 @@ def test_get_config_defaults_when_no_file(tmp_path):
 
 def test_get_config_has_expected_top_level_sections(tmp_path):
     cfg = get_config(path=str(tmp_path / "config.json"))
-    for section in ("global", "leaderboard", "bottom_bar"):
+    for section in ("global", "leaderboard", "level_history"):
         assert section in cfg
 
 
@@ -128,7 +128,7 @@ def test_get_config_partial_file_fills_missing_sections(tmp_path):
     cfg = get_config(path=str(p))
     assert cfg["leaderboard"]["panel_width"] == 400
     assert "global" in cfg
-    assert "bottom_bar" in cfg
+    assert "level_history" in cfg
 
 
 def test_get_config_partial_section_fills_missing_keys(tmp_path):
@@ -238,7 +238,7 @@ def test_api_config_get_returns_200_and_json(client):
     assert resp.status_code == 200
     data = resp.get_json()
     assert data is not None
-    for section in ("global", "leaderboard", "bottom_bar"):
+    for section in ("global", "leaderboard", "level_history"):
         assert section in data
 
 
@@ -411,29 +411,71 @@ def test_api_state_falls_back_to_watcher_colour(client_and_db):
 
 
 # ---------------------------------------------------------------------------
-# Default config — bottom_bar schema
+# Default config — level_history schema
 # ---------------------------------------------------------------------------
 
-def test_default_config_bottom_bar_has_history_settings():
-    bb = DEFAULT_CONFIG["bottom_bar"]
-    assert bb["history_rows"] == 5
-    assert bb["recent_at_bottom"] is True
-    assert bb["show_total_row"] is True
-    assert isinstance(bb["cells"], list)
-    assert len(bb["cells"]) == 4
-    keys = [c["key"] for c in bb["cells"]]
+def test_default_config_level_history_has_history_settings():
+    lh = DEFAULT_CONFIG["level_history"]
+    assert lh["history_rows"] == 5
+    assert lh["recent_at_bottom"] is True
+    assert lh["show_total_row"] is True
+    assert isinstance(lh["cells"], list)
+    assert len(lh["cells"]) == 4
+    keys = [c["key"] for c in lh["cells"]]
     assert keys == ["level", "time", "saved", "points"]
 
 
-def test_get_config_bottom_bar_partial_file_fills_new_keys(tmp_path):
-    """Old config with only the original bottom_bar keys gets new keys from defaults."""
+def test_get_config_level_history_partial_file_fills_new_keys(tmp_path):
+    """Partial level_history config gets missing keys filled from defaults."""
     p = tmp_path / "config.json"
-    p.write_text('{"bottom_bar": {"font_size": 24}}')
+    p.write_text('{"level_history": {"font_size": 24}}')
     cfg = get_config(path=str(p))
-    bb = cfg["bottom_bar"]
-    assert bb["font_size"] == 24
-    assert bb["history_rows"] == 5
-    assert "cells" in bb
+    lh = cfg["level_history"]
+    assert lh["font_size"] == 24
+    assert lh["history_rows"] == 5
+    assert "cells" in lh
+
+
+def test_get_config_old_bottom_bar_key_falls_back_to_level_history_defaults(tmp_path):
+    """Config file with old 'bottom_bar' key is an unknown key; level_history gets defaults."""
+    p = tmp_path / "config.json"
+    p.write_text(json.dumps({"bottom_bar": {"font_size": 99}}))
+    cfg = get_config(path=str(p))
+    assert "level_history" in cfg
+    assert cfg["level_history"] == DEFAULT_CONFIG["level_history"]
+    assert "bottom_bar" not in cfg
+
+
+def test_default_config_leaderboard_has_position():
+    pos = DEFAULT_CONFIG["leaderboard"]["position"]
+    assert pos == {"mode": "tiled", "zone": "right", "anchor": "top-right", "offset_x": 0, "offset_y": 0}
+
+
+def test_default_config_level_history_has_position():
+    pos = DEFAULT_CONFIG["level_history"]["position"]
+    assert pos == {"mode": "tiled", "zone": "bottom", "anchor": "bottom-right", "offset_x": 0, "offset_y": 0}
+
+
+def test_get_config_partial_position_fills_missing_keys(tmp_path):
+    """Partial position block gets remaining keys filled from defaults."""
+    p = tmp_path / "config.json"
+    p.write_text(json.dumps({"leaderboard": {"position": {"mode": "floating"}}}))
+    cfg = get_config(path=str(p))
+    pos = cfg["leaderboard"]["position"]
+    assert pos["mode"] == "floating"
+    assert "zone" in pos
+    assert "anchor" in pos
+    assert "offset_x" in pos
+    assert "offset_y" in pos
+
+
+def test_api_config_post_leaderboard_position_persists(client):
+    payload = {"leaderboard": {"position": {"mode": "floating", "anchor": "top-left"}}}
+    client.post("/api/config", json=payload)
+    data = client.get("/api/config").get_json()
+    pos = data["leaderboard"]["position"]
+    assert pos["mode"] == "floating"
+    assert pos["anchor"] == "top-left"
 
 
 # ---------------------------------------------------------------------------

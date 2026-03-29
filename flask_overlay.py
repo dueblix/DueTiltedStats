@@ -69,8 +69,15 @@ DEFAULT_CONFIG = {
             {"key": "survived", "label": "S",       "visible": True},
             {"key": "races",    "label": "R",       "visible": True},
         ],
+        "position": {
+            "mode": "tiled",
+            "zone": "right",
+            "anchor": "top-right",
+            "offset_x": 0,
+            "offset_y": 0,
+        },
     },
-    "bottom_bar": {
+    "level_history": {
         "enabled": True,
         "font_size": 20,
         "font_colour": "#ffffff",
@@ -84,6 +91,13 @@ DEFAULT_CONFIG = {
             {"key": "saved",  "label": "Saved",  "visible": True},
             {"key": "points", "label": "Points", "visible": True},
         ],
+        "position": {
+            "mode": "tiled",
+            "zone": "bottom",
+            "anchor": "bottom-right",
+            "offset_x": 0,
+            "offset_y": 0,
+        },
     },
     "player_colours": {},
 }
@@ -244,7 +258,7 @@ def create_app(watcher, db_path: str, config_path: str | None = None) -> Flask:
                 leaderboard = db.get_run_leaderboard(conn, run_id)
                 summary     = db.get_level_summary(conn, last_level["id"]) if last_level else None
                 # Fetch more rows than any realistic history_rows setting; the
-                # overlay JS slices to cfg.bottom_bar.history_rows before display.
+                # overlay JS slices to cfg.level_history.history_rows before display.
                 run_history = db.get_run_level_history(conn, run_id, 50)
                 run_totals_row = db.get_run_totals(conn, run_id)
             else:
