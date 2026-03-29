@@ -294,7 +294,7 @@
         pane.style.display = 'none';
         return;
       }
-      pane.style.display = '';
+      pane.style.display = 'block';
 
       const pos = paneCfg.position || {};
       if (pos.mode === 'floating') {
@@ -556,7 +556,7 @@
     const hasTotals = data.run_totals && data.run_totals.level_count > 0;
     if (currentConfig?.level_history?.enabled && (history.length > 0 || hasTotals)) {
       renderLevelHistory(data);
-      lhPane.style.display = '';
+      lhPane.style.display = 'block';
     } else {
       lhPane.style.display = 'none';
     }
