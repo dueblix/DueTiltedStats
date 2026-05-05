@@ -17,7 +17,7 @@ import os
 import sys
 from datetime import datetime, timezone
 
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template, send_file
 
 import db
 
@@ -34,6 +34,9 @@ def create_app(watcher, db_path: str) -> Flask:
 
     @app.route("/overlay")
     def overlay():
+        custom = os.path.join(get_app_dir(), "overlay_custom.html")
+        if os.path.exists(custom):
+            return send_file(custom)
         return render_template("overlay.html")
 
     @app.route("/config")

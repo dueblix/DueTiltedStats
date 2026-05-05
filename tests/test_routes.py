@@ -39,9 +39,21 @@ def test_config_page_returns_200(client):
     assert resp.status_code == 200
 
 
-def test_overlay_page_returns_200(client):
+def test_overlay_serves_builtin_when_no_custom(monkeypatch, tmp_path, client):
+    import flask_overlay
+    monkeypatch.setattr(flask_overlay, "get_app_dir", lambda: str(tmp_path))
     resp = client.get("/overlay")
     assert resp.status_code == 200
+
+
+def test_overlay_serves_custom_when_present(monkeypatch, tmp_path, client):
+    import flask_overlay
+    custom = tmp_path / "overlay_custom.html"
+    custom.write_text("<html><body>custom</body></html>")
+    monkeypatch.setattr(flask_overlay, "get_app_dir", lambda: str(tmp_path))
+    resp = client.get("/overlay")
+    assert resp.status_code == 200
+    assert b"custom" in resp.data
 
 
 def test_history_page_returns_200(client):
