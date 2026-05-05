@@ -2,34 +2,36 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;700&family=Roboto+Mono:wght@400;700&family=JetBrains+Mono:wght@400;700&family=Fira+Code:wght@400;700&family=Space+Mono:wght@400;700&family=Inconsolata:wght@400;700&family=IBM+Plex+Mono:wght@400;700&family=Barlow+Condensed:wght@400;700&family=Oswald:wght@400;700&family=Rajdhani:wght@400;600&family=Chakra+Petch:wght@400;700&family=Exo+2:wght@400;700&family=Bebas+Neue&family=Roboto:wght@400;700&family=Inter:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Open+Sans:wght@400;700&family=Nunito:wght@400;700&display=swap">
 <style>
+  /* ------------------------------------------------------------------ */
+  /* Layout and style defaults — edit these values to customise.         */
+  /* ------------------------------------------------------------------ */
+  :root {
+    --font:             'Courier New', monospace;
+
+    /* Leaderboard */
+    --lb-width:         310px;
+    --lb-font-size:     40px;
+    --lb-font-colour:   #ffffff;
+    --lb-row-bg:        rgba(26, 26, 26, 0.60);
+    --lb-row-bg-alt:    rgba(26, 26, 26, 0.60);  /* same = no alternating rows */
+    --lb-header-bg:     rgba(26, 26, 26, 0.60);
+    --lb-row-height:    54px;
+    --lb-pad-v:         4px;
+    --lb-pad-h:         6px;
+    --lb-radius:        0px;
+
+    /* Level history */
+    --lh-font-size:     20px;
+    --lh-font-colour:   #ffffff;
+    --lh-bg:            rgba(0, 0, 0, 0.75);
+  }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
-    --font-family: 'Courier New', monospace;
-    --panel-opacity: 0.6;   /* used by #status background; rows use hexToRgba() instead */
-    --row-font-size: 40px;
-    --row-font-colour: #ffffff;
-    --header-font-size: 40px;
-    --header-font-colour: #ffffff;
-    --row-bg: #1a1a1a;
-    --row-bg-alt: #2a2a2a;
-    --row-separator: none;
-    --header-text-transform: uppercase;
-    --header-font-weight: normal;
-    --row-height: 54px;
-    --cell-padding-v: 4px;
-    --cell-padding-h: 6px;
-    --panel-border-radius: 0px;
-    --lh-opacity: 0.75;
-    --lh-font-size: 20px;
-    --lh-font-colour: #ffffff;
-
     background: transparent;
-    font-family: var(--font-family);
+    font-family: var(--font);
     font-size: 14px;
     color: #ffffff;
     width: 100vw;
@@ -38,27 +40,34 @@
     position: relative;
   }
 
-  /* ---- Grid container: fills the viewport, all panes live inside ---- */
+  /*
+   * Grid: leaderboard in the right column, level history along the bottom.
+   * To move a pane, change grid-area on the pane and adjust the track sizes.
+   *   columns: left | center | right
+   *   rows:    top  | center | bottom
+   */
   #overlay-grid {
     position: absolute;
     inset: 0;
     display: grid;
-    /* Named areas — track sizes are set dynamically by buildGridTemplate() */
     grid-template-areas:
       "top    top    top"
       "left   center right"
       "bottom bottom bottom";
+    grid-template-columns: 0 1fr var(--lb-width);
+    grid-template-rows:    0 1fr fit-content(40vh);
     overflow: hidden;
   }
 
   /* ---- Leaderboard pane ---- */
   #leaderboard-pane {
-    border-radius: var(--panel-border-radius);
+    grid-area: right;
     overflow: hidden;
+    border-radius: var(--lb-radius);
   }
 
   #status {
-    background: rgba(0, 0, 0, var(--panel-opacity));
+    background: rgba(0, 0, 0, 0.60);
     color: #aaaaaa;
     font-size: 11px;
     padding: 6px 10px;
@@ -72,43 +81,35 @@
     table-layout: auto;
   }
 
-  #leaderboard thead tr {
-    background: var(--header-bg);
-  }
+  #leaderboard thead tr  { background: var(--lb-header-bg); }
 
   #leaderboard thead th {
-    color: var(--header-font-colour);
-    font-size: var(--header-font-size);
-    font-weight: var(--header-font-weight);
-    text-transform: var(--header-text-transform);
+    color: var(--lb-font-colour);
+    font-size: var(--lb-font-size);
+    font-weight: normal;
+    text-transform: uppercase;
     letter-spacing: 0.1em;
-    padding: var(--cell-padding-v) var(--cell-padding-h);
+    padding: var(--lb-pad-v) var(--lb-pad-h);
     text-align: center;
     white-space: nowrap;
   }
 
-  #leaderboard thead th.name {
-    text-align: center;
-    width: 100%;
-  }
+  #leaderboard thead th.name { text-align: center; width: 100%; }
 
   #leaderboard tbody tr {
-    background: var(--row-bg);
-    border-bottom: var(--row-separator);
-    height: var(--row-height);
+    background: var(--lb-row-bg);
+    height: var(--lb-row-height);
   }
 
-  #leaderboard tbody tr:nth-child(odd) {
-    background: var(--row-bg-alt);
-  }
+  #leaderboard tbody tr:nth-child(odd) { background: var(--lb-row-bg-alt); }
 
   #leaderboard tbody td {
-    padding: var(--cell-padding-v) var(--cell-padding-h);
+    padding: var(--lb-pad-v) var(--lb-pad-h);
     vertical-align: middle;
     white-space: nowrap;
     text-align: center;
-    font-size: var(--row-font-size);
-    color: var(--row-font-colour);
+    font-size: var(--lb-font-size);
+    color: var(--lb-font-colour);
   }
 
   #leaderboard tbody td.name {
@@ -117,7 +118,6 @@
     max-width: 0;
     overflow: hidden;
     text-overflow: clip;
-    font-size: var(--row-font-size);
     font-weight: bold;
     color: #ffffff;
     padding-right: 10px;
@@ -125,7 +125,8 @@
 
   /* ---- Level history pane ---- */
   #level-history-pane {
-    background: rgba(0, 0, 0, var(--lh-opacity));
+    grid-area: bottom;
+    background: var(--lh-bg);
     display: none;
   }
 
@@ -154,7 +155,7 @@
   }
 
   #level-history tbody tr.total-row td {
-    border-top: 1px solid rgba(255,255,255,0.25);
+    border-top: 1px solid rgba(255, 255, 255, 0.25);
     font-weight: bold;
   }
 </style>
@@ -162,11 +163,18 @@
 <body>
 
   <div id="overlay-grid">
+
     <div id="leaderboard-pane">
       <div id="status">Waiting for game...</div>
       <table id="leaderboard">
         <thead>
-          <tr id="lb-head"></tr>
+          <tr>
+            <th>#</th>
+            <th class="name">Player</th>
+            <th>P</th>
+            <th>S</th>
+            <th>R</th>
+          </tr>
         </thead>
         <tbody id="lb-body"></tbody>
       </table>
@@ -174,372 +182,114 @@
 
     <div id="level-history-pane">
       <table id="level-history">
-        <thead><tr id="lh-head"></tr></thead>
+        <thead>
+          <tr>
+            <th>Level</th>
+            <th>Time</th>
+            <th>Saved</th>
+            <th>Points</th>
+          </tr>
+        </thead>
         <tbody id="lh-body"></tbody>
       </table>
     </div>
+
   </div>
 
 <script>
   const POLL_INTERVAL = 2000;
+  const HISTORY_ROWS  = 5;
 
-  let rowCount = null;
-  let activeColumns = [];  // [{key, label}] for visible leaderboard columns in order
-  let activeCells = [];    // [{key, label}] for visible level-history cells in order
-  let currentConfig = null;
-  let lastLayoutSig = null;   // detects layout-affecting leaderboard config changes
-  let lastLhLayoutSig = null; // detects level-history cell/font changes
-  let lastLhVisible = false;  // detects lh show/hide so rowCount resets when lb height changes
+  let rowCount      = null;
+  let lastLhVisible = false;
+  let lastStatus    = null;
 
-  function layoutSig(lb) {
-    // Captures fields that affect row height or column structure, so the header
-    // and rowCount are rebuilt only when something layout-relevant changes.
-    //   font_size        — body row height
-    //   headerFontSize   — thead height (header_font_override may differ from body)
-    //   row_height       — explicit row height override
-    //   cell_padding_v   — vertical padding affects row height
-    //   cols             — visible column set and labels
-    //   pos              — zone/mode/fill change affects available height for row calc
-    // Excluded: colours, opacity, text-transform — none affect row height.
-    const hdr = lb.header_font_override || {};
-    const headerFontSize = hdr.enabled ? hdr.font_size : lb.font_size;
-    const cols = lb.columns.filter(c => c.visible).map(c => `${c.key}:${c.label}`).join(',');
-    const pos = lb.position || {};
-    return `${lb.font_size}|${headerFontSize}|${lb.row_height}|${lb.cell_padding_v}|${cols}|${pos.mode}|${pos.zone}|${pos.fill ?? true}`;
-  }
-
-  function lhLayoutSig(lh) {
-    const cells = (lh.cells || []).filter(c => c.visible).map(c => `${c.key}:${c.label}`).join(',');
-    return `${lh.font_size}|${cells}`;
-  }
-
-  // Maps each config column key to the matching field name in the /api/state
-  // player objects. When a new column type is added to DEFAULT_CONFIG, a
-  // corresponding entry must be added here AND the /api/state route must
-  // include that field in each player dict.
-  // 'rank' and 'name' are handled by explicit branches in renderRows; only
-  // data columns that map to a player-object field belong here.
-  const COL_FIELD = {
-    points:   'exp_earned',
-    survived: 'levels_survived',
-    races:    'levels_played',
-  };
-
-  // Lighten each RGB channel by 16/255 (~6%) to produce the automatic
-  // alternating row colour when row_background_alt.enabled is false.
-  // Fallback '#2a2a2a' matches the default alt colour in DEFAULT_CONFIG.
-  function deriveAltColour(hex) {
-    if (!hex || hex.length < 7) return '#2a2a2a';
-    const r = Math.min(255, parseInt(hex.slice(1, 3), 16) + 16);
-    const g = Math.min(255, parseInt(hex.slice(3, 5), 16) + 16);
-    const b = Math.min(255, parseInt(hex.slice(5, 7), 16) + 16);
-    return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
-  }
-
-  function hexToRgba(hex, alpha) {
-    if (!hex || hex.length < 7) return `rgba(0,0,0,${alpha})`;
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return `rgba(${r},${g},${b},${alpha})`;
-  }
-
-  // ---------------------------------------------------------------------------
-  // buildGridTemplate — computes and applies the CSS grid layout from config.
-  //
-  // Left/right zones use the leaderboard's panel_width for the column track.
-  // Top/bottom zones use 'auto' (size to content).
-  // Disabled or floating panes collapse their track to '0'.
-  // Floating panes are absolutely positioned relative to the overlay-grid.
-  //
-  // Note: a floating level-history pane has no explicit width and will size to
-  // content, which may span the full viewport on wide tables. This is a known
-  // rough edge; explicit width config can be added later if needed.
-  // ---------------------------------------------------------------------------
-  function buildGridTemplate(cfg) {
-    const grid   = document.getElementById('overlay-grid');
-    const lbPane = document.getElementById('leaderboard-pane');
-    const lhPane = document.getElementById('level-history-pane');
-    const lb = cfg.leaderboard;
-    const lh = cfg.level_history;
-
-    // Returns the zone for a pane if it is enabled and tiled, else null.
-    function tiledZone(paneCfg) {
-      return paneCfg.enabled && paneCfg.position?.mode !== 'floating'
-        ? (paneCfg.position?.zone || 'right')
-        : null;
-    }
-
-    const lbZone = tiledZone(lb);
-    const lhZone = tiledZone(lh);
-
-    // Column track size for a given zone ('left' or 'right').
-    function colSize(zone) {
-      if (lbZone === zone) return lb.panel_width + 'px';
-      if (lhZone === zone) return 'auto';
-      return '0';
-    }
-
-    // Whether a pane's position has fill enabled (default true).
-    function isFill(paneCfg) { return paneCfg.position?.fill !== false; }
-
-    // Row track size for top/bottom zones: 1fr if the pane fills, fit-content(40vh)
-    // otherwise. fit-content caps the auto growth so the fill pane always gets the
-    // majority of space; overflow:hidden on the pane clips any excess content.
-    const FIT_TRACK = 'fit-content(40vh)';
-    function rowSize(zone) {
-      if (lbZone === zone) return isFill(lb) ? '1fr' : FIT_TRACK;
-      if (lhZone === zone) return isFill(lh) ? '1fr' : FIT_TRACK;
-      return '0';
-    }
-
-    // Center row: 1fr if any side-zone pane fills, fit-content(40vh) otherwise.
-    const lbInSide = lbZone && ['left', 'right'].includes(lbZone);
-    const lhInSide = lhZone && ['left', 'right'].includes(lhZone);
-    const centerFill = (lbInSide && isFill(lb)) || (lhInSide && isFill(lh));
-    const centerRow  = (lbInSide || lhInSide) ? (centerFill ? '1fr' : FIT_TRACK) : '1fr';
-
-    grid.style.gridTemplateColumns = `${colSize('left')} 1fr ${colSize('right')}`;
-    grid.style.gridTemplateRows    = `${rowSize('top')} ${centerRow} ${rowSize('bottom')}`;
-
-    // Apply positioning and grid area to each pane.
-    function applyPane(pane, paneCfg) {
-      if (!paneCfg.enabled) {
-        pane.style.display = 'none';
-        return;
-      }
-      pane.style.display = 'block';
-
-      const pos = paneCfg.position || {};
-      if (pos.mode === 'floating') {
-        pane.style.position = 'absolute';
-        pane.style.gridArea = '';
-        pane.style.overflow = '';
-        const anchor = pos.anchor || 'top-right';
-        const [v, h] = anchor.split('-');
-        const ox = pos.offset_x ?? 0;
-        const oy = pos.offset_y ?? 0;
-        pane.style.top    = v === 'top'    ? oy + 'px' : '';
-        pane.style.bottom = v === 'bottom' ? oy + 'px' : '';
-        pane.style.left   = h === 'left'   ? ox + 'px' : '';
-        pane.style.right  = h === 'right'  ? ox + 'px' : '';
-      } else {
-        pane.style.position = '';
-        pane.style.top = pane.style.bottom = pane.style.left = pane.style.right = '';
-        pane.style.gridArea = pos.zone || 'right';
-        pane.style.overflow = 'hidden';
-      }
-    }
-
-    applyPane(lbPane, lb);
-    // Level-history pane: display is also controlled by refresh() based on data
-    // presence. applyPane only handles the disabled case here; refresh() manages
-    // the enabled-but-no-data case.
-    if (!lh.enabled) lhPane.style.display = 'none';
-    else applyPane(lhPane, lh);
-  }
-
-  async function applyConfig() {
-    let cfg;
-    try {
-      const resp = await fetch('/api/config');
-      if (!resp.ok) return;
-      cfg = await resp.json();
-    } catch (_) {
-      return;
-    }
-
-    currentConfig = cfg;
-    const body = document.body;
-    const lb   = cfg.leaderboard;
-    const lh   = cfg.level_history;
-
-    // Apply grid layout and pane positioning from config.
-    buildGridTemplate(cfg);
-
-    // --- Global + leaderboard layout ---
-    body.style.setProperty('--font-family',     cfg.global.font_family);
-    body.style.setProperty('--panel-opacity',    lb.opacity);
-    body.style.setProperty('--row-font-size',    lb.font_size + 'px');
-    body.style.setProperty('--row-font-colour',  lb.font_colour);
-
-    // --- Header font: use override values when enabled, else inherit from row ---
-    // Guard with || {} so a missing nested object degrades to body values.
-    const hdr = lb.header_font_override || {};
-    body.style.setProperty('--header-font-size',
-        (hdr.enabled ? hdr.font_size : lb.font_size) + 'px');
-    body.style.setProperty('--header-font-colour',
-        hdr.enabled ? hdr.font_colour : lb.font_colour);
-
-    // --- Row backgrounds ---
-    const rowBg  = lb.row_background_colour;
-    const altCfg = lb.row_background_alt || {};
-    const altHex     = altCfg.enabled ? altCfg.colour               : rowBg;
-    const altOpacity = altCfg.enabled ? (altCfg.opacity ?? lb.opacity) : lb.opacity;
-    body.style.setProperty('--row-bg',     hexToRgba(rowBg,  lb.opacity));
-    body.style.setProperty('--row-bg-alt', hexToRgba(altHex, altOpacity));
-
-    // --- Header background ---
-    const hdrBgHex     = hdr.enabled ? (hdr.bg_colour  || '#000000') : rowBg;
-    const hdrBgOpacity = hdr.enabled ? (hdr.bg_opacity ?? lb.opacity) : lb.opacity;
-    body.style.setProperty('--header-bg', hexToRgba(hdrBgHex, hdrBgOpacity));
-
-    body.style.setProperty('--row-separator',
-        lb.row_separator === 'line' ? '1px solid rgba(255,255,255,0.1)' : 'none');
-    body.style.setProperty('--header-text-transform', lb.header_text_transform || 'uppercase');
-    body.style.setProperty('--header-font-weight',    lb.header_font_weight    || 'normal');
-    body.style.setProperty('--row-height',            (lb.row_height           ?? 54) + 'px');
-    body.style.setProperty('--cell-padding-v',        (lb.cell_padding_v       ?? 4)  + 'px');
-    body.style.setProperty('--cell-padding-h',        (lb.cell_padding_h       ?? 6)  + 'px');
-    body.style.setProperty('--panel-border-radius',   (lb.panel_border_radius  ?? 0)  + 'px');
-
-    // --- Level history ---
-    body.style.setProperty('--lh-opacity',      lh.opacity);
-    body.style.setProperty('--lh-font-size',    lh.font_size + 'px');
-    body.style.setProperty('--lh-font-colour',  lh.font_colour);
-
-    // Rebuild leaderboard column header and reset row count only when layout actually changed
-    const sig = layoutSig(lb);
-    if (sig !== lastLayoutSig) {
-      lastLayoutSig  = sig;
-      activeColumns  = lb.columns.filter(c => c.visible);
-      const headRow  = document.getElementById('lb-head');
-      headRow.innerHTML = '';
-      for (const col of activeColumns) {
-        const th = document.createElement('th');
-        th.textContent = col.label;
-        if (col.key === 'name') th.className = 'name';
-        headRow.appendChild(th);
-      }
-      rowCount = null;
-    }
-
-    // Rebuild level-history table header when cells or font change
-    const lhSig = lhLayoutSig(lh);
-    if (lhSig !== lastLhLayoutSig) {
-      lastLhLayoutSig = lhSig;
-      activeCells = (lh.cells || []).filter(c => c.visible);
-      const lhHead = document.getElementById('lh-head');
-      lhHead.innerHTML = '';
-      for (const cell of activeCells) {
-        const th = document.createElement('th');
-        th.textContent = cell.label;
-        lhHead.appendChild(th);
-      }
-    }
-  }
-
+  // Measures how many leaderboard rows fit in the available pane height.
+  // Called lazily on first render and whenever the pane height changes.
   function calcRowCount() {
-    const panel    = document.getElementById('leaderboard-pane');
-    const thead    = document.querySelector('#leaderboard thead tr');
+    const panel     = document.getElementById('leaderboard-pane');
+    const thead     = document.querySelector('#leaderboard thead');
     const available = panel.clientHeight - thead.offsetHeight;
-    const tbody    = document.getElementById('lb-body');
-    // Insert a representative row to measure its rendered height, then remove it.
-    const test     = document.createElement('tr');
-    test.innerHTML = activeColumns.map(col =>
-      col.key === 'name' ? '<td class="name">x</td>' : '<td>0</td>'
-    ).join('');
+    const tbody     = document.getElementById('lb-body');
+    const test      = document.createElement('tr');
+    test.innerHTML  = '<td>1</td><td class="name">x</td><td>0</td><td>0</td><td>0</td>';
     tbody.appendChild(test);
-    const rowH = test.offsetHeight || currentConfig?.leaderboard?.row_height || 54;
+    const rowH = test.offsetHeight || 54;
     tbody.removeChild(test);
     return Math.max(1, Math.floor(available / rowH));
   }
 
   function renderRows(players) {
-    const lbFill = currentConfig?.leaderboard?.position?.fill !== false;
-    // Fill mode: measure available height and render exactly that many rows (including
-    // blank rows to pad the pane). Fit mode: render only real players — the pane
-    // auto-sizes to content and fit-content(40vh) caps/clips it.
-    const limit = lbFill ? (rowCount || (rowCount = calcRowCount())) : players.length;
+    const limit = rowCount || (rowCount = calcRowCount());
     const tbody = document.getElementById('lb-body');
     tbody.innerHTML = '';
     for (let i = 0; i < limit; i++) {
-      const p = players[i];
+      const p  = players[i];
       const tr = document.createElement('tr');
       if (p) {
-        tr.innerHTML = activeColumns.map(col => {
-          if (col.key === 'name') return `<td class="name" style="color:${p.colour}">${escHtml(p.display_name)}</td>`;
-          if (col.key === 'rank') return `<td>${i + 1}</td>`;
-          const field = COL_FIELD[col.key];
-          return `<td>${field !== undefined ? p[field] : ''}</td>`;
-        }).join('');
+        tr.innerHTML =
+          `<td>${i + 1}</td>` +
+          `<td class="name">${escHtml(p.display_name)}</td>` +
+          `<td>${p.exp_earned}</td>` +
+          `<td>${p.levels_survived}</td>` +
+          `<td>${p.levels_played}</td>`;
       } else {
-        tr.innerHTML = activeColumns.map(col =>
-          col.key === 'name' ? '<td class="name"></td>' : '<td></td>'
-        ).join('');
+        tr.innerHTML = '<td></td><td class="name"></td><td></td><td></td><td></td>';
       }
       tbody.appendChild(tr);
     }
   }
 
-  function formatLevelTime(elapsed_time) {
-    if (elapsed_time === null || elapsed_time === undefined) return '—';
-    const m = Math.floor(elapsed_time / 60).toString().padStart(2, '0');
-    const s = (elapsed_time % 60).toFixed(3).padStart(6, '0');
+  function formatLevelTime(t) {
+    if (t === null || t === undefined) return '—';
+    const m = Math.floor(t / 60).toString().padStart(2, '0');
+    const s = (t % 60).toFixed(3).padStart(6, '0');
     return `${m}:${s}`;
   }
 
   function formatGameTime(started_at, ended_at, server_time, isActive) {
     if (!started_at) return '—';
     const start = new Date(started_at).getTime();
-    const end = isActive ? new Date(server_time).getTime() : new Date(ended_at).getTime();
+    const end   = isActive ? new Date(server_time).getTime() : new Date(ended_at).getTime();
     if (isNaN(start) || isNaN(end)) return '—';
-    const totalSec = Math.max(0, Math.floor((end - start) / 1000));
-    const h = Math.floor(totalSec / 3600);
-    const m = Math.floor((totalSec % 3600) / 60);
-    const s = totalSec % 60;
-    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  }
-
-  function formatCell(key, lvl) {
-    if (key === 'level') return lvl.level_number;
-    if (key === 'time')  return formatLevelTime(lvl.elapsed_time);
-    if (key === 'saved') {
-      const pct = lvl.total_players > 0
-        ? Math.round(lvl.survivors / lvl.total_players * 100) : 0;
-      return `${lvl.survivors}/${lvl.total_players} (${pct}%)`;
-    }
-    if (key === 'points') return lvl.level_exp !== null ? lvl.level_exp : '—';
-    return '—';
+    const sec = Math.max(0, Math.floor((end - start) / 1000));
+    const h   = Math.floor(sec / 3600);
+    const m   = Math.floor((sec % 3600) / 60);
+    const s   = sec % 60;
+    if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
   }
 
   function renderLevelHistory(data) {
-    const lh = currentConfig.level_history;
-    const tbody = document.getElementById('lh-body');
+    const tbody  = document.getElementById('lh-body');
+    const isActive = data.status === 'active';
+    const totals   = data.run_totals;
+
     tbody.innerHTML = '';
 
-    let rows = (data.run_history || []).slice(0, lh.history_rows ?? 5);
-    if (lh.recent_at_bottom !== false) rows = rows.slice().reverse();
-
+    const rows = (data.run_history || []).slice(0, HISTORY_ROWS).slice().reverse();
     for (const lvl of rows) {
+      const pct = lvl.total_players > 0
+        ? Math.round(lvl.survivors / lvl.total_players * 100) : 0;
       const tr = document.createElement('tr');
-      tr.innerHTML = activeCells.map(c => `<td>${formatCell(c.key, lvl)}</td>`).join('');
+      tr.innerHTML =
+        `<td>${lvl.level_number}</td>` +
+        `<td>${formatLevelTime(lvl.elapsed_time)}</td>` +
+        `<td>${lvl.survivors}/${lvl.total_players} (${pct}%)</td>` +
+        `<td>${lvl.level_exp !== null ? lvl.level_exp : '—'}</td>`;
       tbody.appendChild(tr);
     }
 
-    if ((lh.show_total_row !== false) && data.run_totals) {
-      const tot = data.run_totals;
-      const isActive = data.status === 'active';
+    if (totals) {
+      const pct = totals.total_players > 0
+        ? Math.round(totals.total_survivors / totals.total_players * 100) : 0;
       const tr = document.createElement('tr');
       tr.className = 'total-row';
-      tr.innerHTML = activeCells.map(c => {
-        let val;
-        if (c.key === 'level') {
-          val = tot.level_count > 0 ? tot.level_count : '—';
-        } else if (c.key === 'time') {
-          val = formatGameTime(tot.run_started_at, tot.run_ended_at, data.server_time, isActive);
-        } else if (c.key === 'saved') {
-          const pct = tot.total_players > 0
-            ? Math.round(tot.total_survivors / tot.total_players * 100) : 0;
-          val = `${tot.total_survivors}/${tot.total_players} (${pct}%)`;
-        } else if (c.key === 'points') {
-          val = tot.total_exp;
-        } else {
-          val = '—';
-        }
-        return `<td>${val}</td>`;
-      }).join('');
+      tr.innerHTML =
+        `<td>${totals.level_count > 0 ? totals.level_count : '—'}</td>` +
+        `<td>${formatGameTime(totals.run_started_at, totals.run_ended_at, data.server_time, isActive)}</td>` +
+        `<td>${totals.total_survivors}/${totals.total_players} (${pct}%)</td>` +
+        `<td>${totals.total_exp}</td>`;
       tbody.appendChild(tr);
     }
   }
@@ -550,35 +300,33 @@
       const resp = await fetch('/api/state');
       if (!resp.ok) return;
       data = await resp.json();
-    } catch (_) {
-      return;
-    }
+    } catch (_) { return; }
 
     const statusDiv = document.getElementById('status');
     const lhPane    = document.getElementById('level-history-pane');
 
     if (data.status === 'waiting') {
+      if (lastStatus !== 'waiting') { rowCount = null; lastStatus = 'waiting'; }
       renderRows([]);
-      lhPane.style.display = 'none';
+      lhPane.style.display    = 'none';
       statusDiv.style.display = 'block';
       statusDiv.textContent   = 'Waiting for game...';
       return;
     }
 
-    const showLabel = currentConfig?.leaderboard?.show_session_label !== false;
-    statusDiv.textContent   = data.status === 'idle' ? 'PREVIOUS SESSION' : '';
-    statusDiv.style.display = data.status === 'idle' && showLabel ? 'block' : 'none';
+    // Status bar shows for idle, hides for active — height change requires row recalc.
+    if (data.status !== lastStatus) { rowCount = null; lastStatus = data.status; }
 
-    // --- Level history ---
-    // Show when config enables it AND there is history data to display.
-    // currentConfig is null only if applyConfig hasn't succeeded yet on first tick.
-    const history = data.run_history || [];
+    statusDiv.textContent   = data.status === 'idle' ? 'PREVIOUS SESSION' : '';
+    statusDiv.style.display = data.status === 'idle' ? 'block' : 'none';
+
+    const history   = data.run_history || [];
     const hasTotals = data.run_totals && data.run_totals.level_count > 0;
-    const lhVisible = !!(currentConfig?.level_history?.enabled && (history.length > 0 || hasTotals));
-    if (lhVisible !== lastLhVisible) {
-      lastLhVisible = lhVisible;
-      rowCount = null; // lh show/hide changes lb's available height — recalculate
-    }
+    const lhVisible = history.length > 0 || hasTotals;
+
+    // Level history visibility changes the leaderboard's available height.
+    if (lhVisible !== lastLhVisible) { lastLhVisible = lhVisible; rowCount = null; }
+
     if (lhVisible) {
       renderLevelHistory(data);
       lhPane.style.display = 'block';
@@ -586,7 +334,6 @@
       lhPane.style.display = 'none';
     }
 
-    // --- Leaderboard ---
     renderRows(data.run_leaderboard || []);
   }
 
@@ -598,12 +345,9 @@
       .replace(/"/g, '&quot;');
   }
 
-  // applyConfig must complete before refresh: refresh reads activeColumns
-  // (set by applyConfig) to build leaderboard rows. setTimeout (not setInterval)
-  // ensures the next tick only starts after the current one finishes, preventing
-  // concurrent ticks from interleaving DOM writes on slow connections.
+  // setTimeout (not setInterval) ensures each tick completes before the next
+  // starts, preventing overlapping fetches on slow connections.
   async function tick() {
-    await applyConfig();
     await refresh();
     setTimeout(tick, POLL_INTERVAL);
   }
