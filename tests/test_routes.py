@@ -65,6 +65,24 @@ def test_history_page_returns_200(client):
 # /api/state — run_history + run_totals + server_time
 # ---------------------------------------------------------------------------
 
+def test_api_state_leaderboard_player_fields(client_and_db):
+    """run_leaderboard entries have the correct fields and no colour field."""
+    c, db_path = client_and_db
+    with db.get_conn(db_path) as conn:
+        sid = db.insert_session(conn, "testuser", "2024-01-01T00:00:00")
+        rid = db.insert_run(conn, "testuser", "2024-01-01T00:00:00")
+        lid = db.insert_level(conn, rid, sid, 1, 30.0, "2024-01-01T00:01:00", 100, True, None)
+        db.insert_player_levels(conn, lid, [
+            {"username": "alice", "display_name": "Alice", "survived": True}
+        ])
+    data = c.get("/api/state").get_json()
+    assert data["status"] == "active"
+    assert len(data["run_leaderboard"]) == 1
+    player = data["run_leaderboard"][0]
+    assert set(player.keys()) == {"username", "display_name", "levels_played", "levels_survived", "exp_earned"}
+    assert "colour" not in player
+
+
 def test_api_state_returns_run_history_and_totals(client_and_db):
     c, db_path = client_and_db
     with db.get_conn(db_path) as conn:

@@ -206,19 +206,23 @@
 
   // Measures how many leaderboard rows fit in the available pane height.
   // Called lazily on first render and whenever the pane height changes.
+  // IMPORTANT: the test row cell count must match the <thead> column count.
+  // If you add or remove a column in the HTML, update this line to match.
   function calcRowCount() {
     const panel     = document.getElementById('leaderboard-pane');
     const thead     = document.querySelector('#leaderboard thead');
     const available = panel.clientHeight - thead.offsetHeight;
     const tbody     = document.getElementById('lb-body');
     const test      = document.createElement('tr');
-    test.innerHTML  = '<td>1</td><td class="name">x</td><td>0</td><td>0</td><td>0</td>';
+    test.innerHTML  = '<td>1</td><td class="name">x</td><td>0</td><td>0</td><td>0</td>';  // 5 cols: #, Player, P, S, R
     tbody.appendChild(test);
     const rowH = test.offsetHeight || 54;
     tbody.removeChild(test);
     return Math.max(1, Math.floor(available / rowH));
   }
 
+  // Column order here must match the <thead> order: #, Player, P (exp), S (survived), R (played).
+  // If you reorder or rename columns in the HTML, update the field mapping below to match.
   function renderRows(players) {
     const limit = rowCount || (rowCount = calcRowCount());
     const tbody = document.getElementById('lb-body');
