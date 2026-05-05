@@ -51,41 +51,48 @@
 
 <h2>Customising your overlay</h2>
 
-<p>The overlay is a plain HTML file you can edit freely. Drop a custom version
-next to the <code>.exe</code> and it will be served automatically.</p>
+<p>You can make the overlay look however you want. The process is:
+create a custom version of the overlay file, put it in the same folder
+as the app, and it will be used automatically.</p>
 
 <div class="step">
-  <p><strong>Step 1 — Get the guide</strong></p>
+  <p><strong>Step 1 — Read the guide</strong></p>
   <p>Open <code>OverlayConfigGuideline.md</code> — it's in the same folder as
-  the <code>.exe</code>. It documents the data endpoint, includes dummy payloads
-  for testing, and provides reference templates to start from.</p>
+  the app. It explains what data is available, includes example overlays to
+  start from, and walks you through how to use an AI chat tool to build and
+  tweak your design without needing to know how to code.</p>
 </div>
 
 <div class="step">
-  <p><strong>Step 2 — Create your overlay file</strong></p>
-  <p>Copy <code>overlay.html</code> from the <code>templates/</code> folder of
-  the source repository and rename it <code>overlay_custom.html</code>.
-  Or start from one of the minimal templates in the guide.</p>
+  <p><strong>Step 2 — Pick a starting point</strong></p>
+  <p>The guide contains ready-to-use example overlays. Copy one, save it as
+  <code>overlay_custom.html</code>, and you're ready to customise it.
+  If you want to start from the built-in overlay instead, download
+  <code>overlay.html</code> from the
+  <a href="https://github.com/dueblix/DueTiltedStats" target="_blank">GitHub page</a>
+  and rename it <code>overlay_custom.html</code>.</p>
 </div>
 
 <div class="step">
-  <p><strong>Step 3 — Customise it</strong></p>
-  <p>Edit the file directly, or paste the guide and your current
-  <code>overlay_custom.html</code> into an AI chat and describe what you want.
-  The CSS <code>:root</code> block at the top of the built-in template lists
-  every value you can change without touching the JavaScript.</p>
+  <p><strong>Step 3 — Customise it with AI</strong></p>
+  <p>Open an AI chat tool (Claude, ChatGPT, etc.), paste in the contents of
+  <code>OverlayConfigGuideline.md</code>, then paste your
+  <code>overlay_custom.html</code> and describe what you want to change —
+  colours, layout, font size, what information to show. The AI will give you
+  an updated file ready to use.</p>
 </div>
 
 <div class="step">
-  <p><strong>Step 4 — Drop it next to the <code>.exe</code></strong></p>
-  <p>Save <code>overlay_custom.html</code> in the same folder as the
-  <code>.exe</code>. The overlay reloads from your file automatically —
-  no restart needed. Delete it to revert to the built-in overlay.</p>
+  <p><strong>Step 4 — Put it next to the app</strong></p>
+  <p>Save <code>overlay_custom.html</code> in the same folder as
+  <code>DueTiltedStats.exe</code>. The overlay will switch to your version
+  straight away — no restart needed. If you ever want to go back to the
+  default, just delete the file.</p>
 </div>
 
 <div class="note">
-  The latest version of <code>OverlayConfigGuideline.md</code> is always
-  available in the project's GitHub repository alongside the source code.
+  The latest version of the guide and example overlays are always available on the
+  <a href="https://github.com/dueblix/DueTiltedStats" target="_blank">GitHub page</a>.
 </div>
 
 </body>
