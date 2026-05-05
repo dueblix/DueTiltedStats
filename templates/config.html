@@ -2,780 +2,91 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Overlay Config</title>
+<title>DueTiltedStats — Overlay Setup</title>
 <style>
-  body { font-family: sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
-  h1   { margin-bottom: 24px; }
-  label { display: block; margin: 8px 0 2px; font-weight: bold; font-size: 0.9em; }
-  input[type=number], input[type=text], select { width: 100%; padding: 6px; box-sizing: border-box; }
-  input[type=color] { width: 48px; height: 32px; padding: 2px; border: 1px solid #ccc; cursor: pointer; vertical-align: middle; }
-  input[type=checkbox] { cursor: pointer; }
-  #font_family { margin-top: 4px; }
-  details { border: 1px solid #ddd; border-radius: 4px; margin: 12px 0; }
-  details details { margin: 10px 0 4px; }
-  summary { padding: 10px 12px; cursor: pointer; font-weight: bold; font-size: 1em; list-style: none; display: flex; align-items: center; gap: 10px; user-select: none; }
-  summary::-webkit-details-marker { display: none; }
-  summary::marker { display: none; }
-  .details-body { padding: 4px 12px 12px; }
-  .field-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 8px 0; }
-  .inline-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
-  .inline-row label { margin: 0; }
-  .col-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; padding: 4px 0; border-bottom: 1px solid #f0f0f0; }
-  .col-row:last-child { border-bottom: none; }
-  .col-key { font-size: 0.8em; color: #999; }
-  .col-label-input { width: 60px; padding: 4px 6px; font-size: 0.9em; }
-  .move-btn { padding: 2px 7px; font-size: 0.85em; cursor: pointer; border: 1px solid #ccc; border-radius: 3px; background: #f8f8f8; }
-  .move-btn:hover { background: #e8e8e8; }
-  .actions { margin-top: 24px; display: flex; gap: 12px; align-items: center; }
-  button { padding: 8px 20px; cursor: pointer; }
-  #reset-btn { background: none; border: 1px solid #aaa; border-radius: 4px; }
-  #msg { color: green; font-size: 0.9em; }
-  .note { margin-top: 8px; font-size: 0.85em; color: #666; }
+  body {
+    font-family: sans-serif;
+    max-width: 640px;
+    margin: 40px auto;
+    padding: 0 20px;
+    color: #222;
+    line-height: 1.6;
+  }
+  h1 { margin-bottom: 4px; }
+  h2 { margin-top: 32px; margin-bottom: 8px; }
+  nav { margin-bottom: 32px; font-size: 0.9em; }
+  nav a { margin-right: 16px; color: #26a; }
+  code {
+    background: #f0f0f0;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 0.92em;
+  }
+  .step {
+    border-left: 3px solid #26a;
+    padding: 10px 16px;
+    margin: 12px 0;
+    background: #f7f9ff;
+    border-radius: 0 4px 4px 0;
+  }
+  .step p { margin: 4px 0; }
+  .note {
+    background: #fffbe6;
+    border: 1px solid #e8d76a;
+    border-radius: 4px;
+    padding: 10px 14px;
+    font-size: 0.9em;
+    margin-top: 24px;
+  }
   a { color: #26a; }
-  .pc-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
-  .pc-name { flex: 1; padding: 4px 6px; font-size: 0.9em; }
-  .pc-remove { padding: 2px 8px; font-size: 0.9em; cursor: pointer; border: 1px solid #ccc; border-radius: 3px; background: #f8f8f8; }
-  .pc-remove:hover { background: #fdd; }
-  #add-player-colour-btn { margin-top: 8px; padding: 4px 12px; font-size: 0.9em; cursor: pointer; border: 1px solid #aaa; border-radius: 3px; background: #f8f8f8; }
-  #add-player-colour-btn:hover { background: #e8e8e8; }
-
-  /* ---- Zone picker ---- */
-  .zone-picker { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; margin: 8px 0; }
-  .zone-picker-mid { display: flex; gap: 4px; align-items: center; }
-  .zone-picker-center { width: 48px; height: 32px; border: 1px dashed #ccc; border-radius: 3px; }
-  .zone-btn { padding: 4px 14px; border: 1px solid #ccc; border-radius: 3px; background: #f8f8f8; cursor: pointer; font-size: 0.85em; }
-  .zone-btn:hover { background: #e8e8e8; }
-  .zone-btn.active { background: #26a; color: #fff; border-color: #26a; }
-  .zone-floating-opts { margin: 4px 0 8px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #fafafa; }
 </style>
 </head>
 <body>
-<h1>Overlay Config</h1>
-<p><a href="/overlay">View overlay</a></p>
 
-<form id="cfg-form">
+<h1>DueTiltedStats</h1>
+<nav>
+  <a href="/overlay">View overlay</a>
+  <a href="/history">History</a>
+</nav>
 
-  <!-- Global -->
-  <details id="sec-global">
-    <summary>Global</summary>
-    <div class="details-body">
-      <label for="font_filter">Font family</label>
-      <input type="text" id="font_filter" placeholder="Filter fonts…" autocomplete="off">
-      <select id="font_family"></select>
-      <label for="sav_filename" style="margin-top:12px">Colour save file name</label>
-      <input type="text" id="sav_filename" placeholder="New tilts.sav" autocomplete="off">
-      <p class="note">Filename of the .sav file inside the Sessions subfolder of your game save directory. Used to read per-player colours.</p>
-    </div>
-  </details>
+<h2>Customising your overlay</h2>
 
-  <!-- Leaderboard -->
-  <details id="sec-leaderboard">
-    <summary>
-      <input type="checkbox" id="lb_enabled"> Leaderboard
-    </summary>
-    <div class="details-body">
-      <div class="field-pair">
-        <div>
-          <label for="lb_panel_width">Panel width (px)</label>
-          <input type="number" id="lb_panel_width" min="100" max="800">
-        </div>
-        <div>
-          <label for="lb_panel_border_radius">Border radius (px)</label>
-          <input type="number" id="lb_panel_border_radius" min="0" max="100">
-        </div>
-      </div>
-      <div class="field-pair">
-        <div>
-          <label for="lb_font_size">Font size (px)</label>
-          <input type="number" id="lb_font_size" min="8" max="120">
-        </div>
-        <div>
-          <label for="lb_font_colour">Font colour</label>
-          <input type="color" id="lb_font_colour">
-        </div>
-      </div>
+<p>The overlay is a plain HTML file you can edit freely. Drop a custom version
+next to the <code>.exe</code> and it will be served automatically.</p>
 
-      <!-- Header appearance -->
-      <details id="sec-header">
-        <summary>Header appearance</summary>
-        <div class="details-body">
-          <div class="field-pair">
-            <div>
-              <label for="hdr_text_transform">Text transform</label>
-              <select id="hdr_text_transform">
-                <option value="uppercase">Uppercase</option>
-                <option value="none">None</option>
-              </select>
-            </div>
-            <div>
-              <label for="hdr_font_weight">Font weight</label>
-              <select id="hdr_font_weight">
-                <option value="normal">Normal</option>
-                <option value="bold">Bold</option>
-              </select>
-            </div>
-          </div>
+<div class="step">
+  <p><strong>Step 1 — Get the guide</strong></p>
+  <p>Open <code>OverlayConfigGuideline.md</code> — it's in the same folder as
+  the <code>.exe</code>. It documents the data endpoint, includes dummy payloads
+  for testing, and provides reference templates to start from.</p>
+</div>
 
-          <details id="sec-header-override">
-            <summary>
-              <input type="checkbox" id="hdr_override_enabled"> Font and colour override
-            </summary>
-            <div class="details-body">
-              <div class="field-pair">
-                <div>
-                  <label for="hdr_font_size">Font size (px)</label>
-                  <input type="number" id="hdr_font_size" min="8" max="120">
-                </div>
-                <div>
-                  <label for="hdr_font_colour">Font colour</label>
-                  <input type="color" id="hdr_font_colour">
-                </div>
-              </div>
-              <div class="field-pair">
-                <div>
-                  <label for="hdr_bg_opacity">Opacity (0–1)</label>
-                  <input type="number" id="hdr_bg_opacity" min="0" max="1" step="0.05">
-                </div>
-                <div>
-                  <label for="hdr_bg_colour">Background colour</label>
-                  <input type="color" id="hdr_bg_colour">
-                </div>
-              </div>
-            </div>
-          </details>
-        </div>
-      </details>
+<div class="step">
+  <p><strong>Step 2 — Create your overlay file</strong></p>
+  <p>Copy <code>overlay.html</code> from the <code>templates/</code> folder of
+  the source repository and rename it <code>overlay_custom.html</code>.
+  Or start from one of the minimal templates in the guide.</p>
+</div>
 
-      <!-- Row appearance -->
-      <details id="sec-rows">
-        <summary>Row appearance</summary>
-        <div class="details-body">
-          <div class="field-pair">
-            <div>
-              <label for="lb_opacity">Opacity (0–1)</label>
-              <input type="number" id="lb_opacity" min="0" max="1" step="0.05">
-            </div>
-            <div>
-              <label for="row_bg_colour">Row background colour</label>
-              <input type="color" id="row_bg_colour">
-            </div>
-          </div>
+<div class="step">
+  <p><strong>Step 3 — Customise it</strong></p>
+  <p>Edit the file directly, or paste the guide and your current
+  <code>overlay_custom.html</code> into an AI chat and describe what you want.
+  The CSS <code>:root</code> block at the top of the built-in template lists
+  every value you can change without touching the JavaScript.</p>
+</div>
 
-          <details id="sec-alt-colour">
-            <summary>
-              <input type="checkbox" id="row_bg_alt_enabled"> Alternating row colour
-            </summary>
-            <div class="details-body">
-              <div class="field-pair">
-                <div>
-                  <label for="row_bg_alt_opacity">Opacity (0–1)</label>
-                  <input type="number" id="row_bg_alt_opacity" min="0" max="1" step="0.05">
-                </div>
-                <div>
-                  <label for="row_bg_alt_colour">Alt row colour</label>
-                  <div class="inline-row" style="margin:0">
-                    <input type="color" id="row_bg_alt_colour">
-                    <button type="button" id="row_bg_alt_reset">Reset to default</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </details>
+<div class="step">
+  <p><strong>Step 4 — Drop it next to the <code>.exe</code></strong></p>
+  <p>Save <code>overlay_custom.html</code> in the same folder as the
+  <code>.exe</code>. The overlay reloads from your file automatically —
+  no restart needed. Delete it to revert to the built-in overlay.</p>
+</div>
 
-          <label for="row_separator">Row separator</label>
-          <select id="row_separator">
-            <option value="none">None</option>
-            <option value="line">Line</option>
-          </select>
+<div class="note">
+  The latest version of <code>OverlayConfigGuideline.md</code> is always
+  available in the project's GitHub repository alongside the source code.
+</div>
 
-          <label for="lb_row_height">Row height (px)</label>
-          <input type="number" id="lb_row_height" min="20" max="200">
-          <div class="field-pair">
-            <div>
-              <label for="lb_cell_padding_v">Cell padding vertical (px)</label>
-              <input type="number" id="lb_cell_padding_v" min="0" max="40">
-            </div>
-            <div>
-              <label for="lb_cell_padding_h">Cell padding horizontal (px)</label>
-              <input type="number" id="lb_cell_padding_h" min="0" max="40">
-            </div>
-          </div>
-        </div>
-      </details>
-
-      <div class="inline-row" style="margin-top:8px">
-        <input type="checkbox" id="lb_show_session_label">
-        <label for="lb_show_session_label" style="margin:0">Show "Previous Session" label</label>
-      </div>
-
-      <label style="margin-top:12px">Columns</label>
-      <div id="columns-list"></div>
-
-      <!-- Position -->
-      <details id="sec-lb-position">
-        <summary>Position</summary>
-        <div class="details-body">
-          <div id="lb-position-picker"></div>
-        </div>
-      </details>
-    </div>
-  </details>
-
-  <!-- Level History -->
-  <details id="sec-level-history">
-    <summary>
-      <input type="checkbox" id="lh_enabled"> Level History
-    </summary>
-    <div class="details-body">
-      <div class="field-pair">
-        <div>
-          <label for="lh_font_size">Font size (px)</label>
-          <input type="number" id="lh_font_size" min="8" max="120">
-        </div>
-        <div>
-          <label for="lh_opacity">Opacity (0–1)</label>
-          <input type="number" id="lh_opacity" min="0" max="1" step="0.05">
-        </div>
-      </div>
-      <div class="inline-row">
-        <label for="lh_font_colour" style="margin:0">Font colour</label>
-        <input type="color" id="lh_font_colour">
-      </div>
-      <div class="field-pair" style="margin-top:8px">
-        <div>
-          <label for="lh_history_rows">History rows</label>
-          <input type="number" id="lh_history_rows" min="1" max="20">
-        </div>
-      </div>
-      <div class="inline-row">
-        <input type="checkbox" id="lh_recent_at_bottom">
-        <label for="lh_recent_at_bottom" style="margin:0">Most recent row at bottom</label>
-      </div>
-      <div class="inline-row">
-        <input type="checkbox" id="lh_show_total_row">
-        <label for="lh_show_total_row" style="margin:0">Show total row</label>
-      </div>
-      <label style="margin-top:12px">Cells</label>
-      <div id="cells-list"></div>
-
-      <!-- Position -->
-      <details id="sec-lh-position">
-        <summary>Position</summary>
-        <div class="details-body">
-          <div id="lh-position-picker"></div>
-        </div>
-      </details>
-    </div>
-  </details>
-
-  <!-- Player colours -->
-  <details id="sec-player-colours">
-    <summary>Player colours</summary>
-    <div class="details-body">
-      <p class="note">Override the name colour for specific players. Use the player's display name exactly as it appears in the overlay.</p>
-      <div id="player-colours-list"></div>
-      <button type="button" id="add-player-colour-btn">+ Add player</button>
-    </div>
-  </details>
-
-  <div class="actions">
-    <button type="button" id="reset-btn">Reset to defaults</button>
-    <span id="msg"></span>
-  </div>
-  <p class="note">Changes are picked up by the overlay automatically within a few seconds.</p>
-</form>
-
-<script>
-  // NOTE: Adding a Google Font here also requires updating the stylesheet URL in overlay.html.
-  const FONTS = [
-    // Monospaced
-    {label: "Courier New",      value: "Courier New, monospace",           category: "Mono"},
-    {label: "Consolas",         value: "Consolas, monospace",              category: "Mono"},
-    {label: "Lucida Console",   value: "Lucida Console, monospace",        category: "Mono"},
-    {label: "Source Code Pro",  value: "'Source Code Pro', monospace",     category: "Mono"},
-    {label: "Roboto Mono",      value: "'Roboto Mono', monospace",         category: "Mono"},
-    {label: "JetBrains Mono",   value: "'JetBrains Mono', monospace",      category: "Mono"},
-    {label: "Fira Code",        value: "'Fira Code', monospace",           category: "Mono"},
-    {label: "Space Mono",       value: "'Space Mono', monospace",          category: "Mono"},
-    {label: "Inconsolata",      value: "Inconsolata, monospace",           category: "Mono"},
-    {label: "IBM Plex Mono",    value: "'IBM Plex Mono', monospace",       category: "Mono"},
-    // Condensed
-    {label: "Barlow Condensed", value: "'Barlow Condensed', sans-serif",   category: "Condensed"},
-    {label: "Oswald",           value: "Oswald, sans-serif",               category: "Condensed"},
-    {label: "Rajdhani",         value: "Rajdhani, sans-serif",             category: "Condensed"},
-    {label: "Chakra Petch",     value: "'Chakra Petch', sans-serif",       category: "Condensed"},
-    {label: "Exo 2",            value: "'Exo 2', sans-serif",              category: "Condensed"},
-    {label: "Bebas Neue",       value: "'Bebas Neue', sans-serif",         category: "Condensed"},
-    // Sans-serif
-    {label: "Arial",            value: "Arial, sans-serif",                category: "Sans-serif"},
-    {label: "Roboto",           value: "Roboto, sans-serif",               category: "Sans-serif"},
-    {label: "Inter",            value: "Inter, sans-serif",                category: "Sans-serif"},
-    {label: "Lato",             value: "Lato, sans-serif",                 category: "Sans-serif"},
-    {label: "Montserrat",       value: "Montserrat, sans-serif",           category: "Sans-serif"},
-    {label: "Open Sans",        value: "'Open Sans', sans-serif",          category: "Sans-serif"},
-    {label: "Nunito",           value: "Nunito, sans-serif",               category: "Sans-serif"},
-  ];
-
-  function buildFontSelect(filter) {
-    const sel = document.getElementById('font_family');
-    const current = sel.value;
-    const query = filter.toLowerCase();
-    const visible = FONTS.filter(f =>
-      f.label.toLowerCase().includes(query) || f.category.toLowerCase().includes(query)
-    );
-    if (visible.length === 0) return;  // keep existing options rather than leaving select empty
-    sel.innerHTML = '';
-    let grp = null, lastCat = null;
-    for (const f of visible) {
-      if (f.category !== lastCat) {
-        grp = document.createElement('optgroup');
-        grp.label = f.category;
-        sel.appendChild(grp);
-        lastCat = f.category;
-      }
-      const opt = document.createElement('option');
-      opt.value = f.value;
-      opt.textContent = f.label;
-      grp.appendChild(opt);
-    }
-    if ([...sel.options].find(o => o.value === current)) sel.value = current;
-  }
-
-  let currentCfg = null;
-
-  async function loadConfig() {
-    try {
-      const resp = await fetch('/api/config');
-      if (!resp.ok) throw new Error(resp.status);
-      currentCfg = await resp.json();
-      populateForm(currentCfg);
-    } catch (_) {
-      document.getElementById('msg').style.color = 'red';
-      document.getElementById('msg').textContent = 'Failed to load config. Refresh to retry.';
-    }
-  }
-
-  function populateForm(cfg) {
-    // Global
-    document.getElementById('font_filter').value = '';
-    buildFontSelect('');
-    const sel = document.getElementById('font_family');
-    const match = [...sel.options].find(o => o.value === cfg.global.font_family);
-    sel.value = match ? cfg.global.font_family : sel.options[0].value;
-    document.getElementById('sav_filename').value = cfg.global.sav_filename || 'New tilts.sav';
-
-    // Leaderboard
-    document.getElementById('lb_enabled').checked               = cfg.leaderboard.enabled;
-    document.getElementById('lb_panel_width').value             = cfg.leaderboard.panel_width;
-    document.getElementById('lb_panel_border_radius').value     = cfg.leaderboard.panel_border_radius;
-    document.getElementById('lb_opacity').value                 = cfg.leaderboard.opacity;
-    document.getElementById('lb_font_size').value               = cfg.leaderboard.font_size;
-    document.getElementById('lb_font_colour').value             = cfg.leaderboard.font_colour;
-    document.getElementById('hdr_text_transform').value         = cfg.leaderboard.header_text_transform;
-    document.getElementById('hdr_font_weight').value            = cfg.leaderboard.header_font_weight;
-
-    // Header override
-    document.getElementById('hdr_override_enabled').checked = cfg.leaderboard.header_font_override.enabled;
-    document.getElementById('hdr_font_size').value           = cfg.leaderboard.header_font_override.font_size;
-    document.getElementById('hdr_font_colour').value         = cfg.leaderboard.header_font_override.font_colour;
-    document.getElementById('hdr_bg_colour').value           = cfg.leaderboard.header_font_override.bg_colour;
-    document.getElementById('hdr_bg_opacity').value          = cfg.leaderboard.header_font_override.bg_opacity;
-
-    // Row background
-    document.getElementById('row_bg_colour').value         = cfg.leaderboard.row_background_colour;
-    document.getElementById('row_bg_alt_enabled').checked  = cfg.leaderboard.row_background_alt.enabled;
-    document.getElementById('row_bg_alt_opacity').value    = cfg.leaderboard.row_background_alt.opacity;
-    document.getElementById('row_bg_alt_colour').value     = cfg.leaderboard.row_background_alt.colour;
-
-    // Row separator and sizing
-    document.getElementById('row_separator').value              = cfg.leaderboard.row_separator;
-    document.getElementById('lb_show_session_label').checked    = cfg.leaderboard.show_session_label;
-    document.getElementById('lb_row_height').value              = cfg.leaderboard.row_height;
-    document.getElementById('lb_cell_padding_v').value          = cfg.leaderboard.cell_padding_v;
-    document.getElementById('lb_cell_padding_h').value          = cfg.leaderboard.cell_padding_h;
-
-    // Columns
-    buildReorderableList('columns-list', cfg.leaderboard.columns, 'name', 'col', 'moveColumn');
-
-    // Leaderboard position picker
-    buildZonePicker('leaderboard', 'lb-position-picker');
-
-    // Level history
-    document.getElementById('lh_enabled').checked          = cfg.level_history.enabled;
-    document.getElementById('lh_opacity').value            = cfg.level_history.opacity;
-    document.getElementById('lh_font_size').value          = cfg.level_history.font_size;
-    document.getElementById('lh_font_colour').value        = cfg.level_history.font_colour;
-    document.getElementById('lh_history_rows').value       = cfg.level_history.history_rows ?? 5;
-    document.getElementById('lh_recent_at_bottom').checked = cfg.level_history.recent_at_bottom !== false;
-    document.getElementById('lh_show_total_row').checked   = cfg.level_history.show_total_row !== false;
-    buildReorderableList('cells-list', cfg.level_history.cells || [], 'level', 'cell', 'moveCellRow');
-
-    // Level history position picker
-    buildZonePicker('level_history', 'lh-position-picker');
-
-    // Player colours
-    buildPlayerColourRows(cfg.player_colours || {});
-  }
-
-  // ---------------------------------------------------------------------------
-  // Zone picker — shared component for leaderboard and level history position.
-  // paneKey: 'leaderboard' or 'level_history'
-  // containerId: id of the mount-point div
-  // ---------------------------------------------------------------------------
-  function buildZonePicker(paneKey, containerId) {
-    const container = document.getElementById(containerId);
-    const pos = (currentCfg && currentCfg[paneKey] && currentCfg[paneKey].position) || {};
-    const isFloating = pos.mode === 'floating';
-    const activeZone = isFloating ? 'floating' : (pos.zone || 'right');
-
-    container.innerHTML = `
-      <div class="zone-picker" id="zone-picker-${paneKey}">
-        <button type="button" class="zone-btn" data-zone="top">Top</button>
-        <div class="zone-picker-mid">
-          <button type="button" class="zone-btn" data-zone="left">Left</button>
-          <div class="zone-picker-center"></div>
-          <button type="button" class="zone-btn" data-zone="right">Right</button>
-        </div>
-        <button type="button" class="zone-btn" data-zone="bottom">Bottom</button>
-        <button type="button" class="zone-btn" data-zone="floating">Floating</button>
-      </div>
-      <div class="zone-tiled-opts" id="zone-tiled-opts-${paneKey}" style="display:${isFloating ? 'none' : ''}">
-        <label style="display:flex;align-items:center;gap:6px;margin-top:6px;cursor:pointer">
-          <input type="checkbox" id="zone-fill-${paneKey}">
-          Stretch to fill available space
-        </label>
-      </div>
-      <div class="zone-floating-opts" id="zone-floating-opts-${paneKey}" style="display:${isFloating ? '' : 'none'}">
-        <label for="zone-anchor-${paneKey}">Anchor corner</label>
-        <select id="zone-anchor-${paneKey}">
-          <option value="top-left">Top left</option>
-          <option value="top-right">Top right</option>
-          <option value="bottom-left">Bottom left</option>
-          <option value="bottom-right">Bottom right</option>
-        </select>
-        <div class="field-pair" style="margin-top:6px">
-          <div>
-            <label for="zone-offset-x-${paneKey}">Offset X (px)</label>
-            <input type="number" id="zone-offset-x-${paneKey}" min="-500" max="500">
-          </div>
-          <div>
-            <label for="zone-offset-y-${paneKey}">Offset Y (px)</label>
-            <input type="number" id="zone-offset-y-${paneKey}" min="-500" max="500">
-          </div>
-        </div>
-      </div>
-    `;
-
-    // Set active zone button
-    container.querySelectorAll('.zone-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.zone === activeZone);
-    });
-
-    // Set tiled option values
-    document.getElementById(`zone-fill-${paneKey}`).checked = pos.fill !== false;
-
-    // Set floating option values
-    document.getElementById(`zone-anchor-${paneKey}`).value       = pos.anchor   || 'top-right';
-    document.getElementById(`zone-offset-x-${paneKey}`).value     = pos.offset_x ?? 0;
-    document.getElementById(`zone-offset-y-${paneKey}`).value     = pos.offset_y ?? 0;
-
-    // Zone button click handler
-    container.querySelectorAll('.zone-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        container.querySelectorAll('.zone-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const floating = btn.dataset.zone === 'floating';
-        document.getElementById(`zone-tiled-opts-${paneKey}`).style.display   = floating ? 'none' : '';
-        document.getElementById(`zone-floating-opts-${paneKey}`).style.display = floating ? '' : 'none';
-        autoSave();
-      });
-    });
-
-    // Tiled sub-option handler
-    document.getElementById(`zone-fill-${paneKey}`).addEventListener('change', autoSave);
-
-    // Floating sub-option handlers
-    document.getElementById(`zone-anchor-${paneKey}`).addEventListener('change', autoSave);
-    document.getElementById(`zone-offset-x-${paneKey}`).addEventListener('change', autoSave);
-    document.getElementById(`zone-offset-y-${paneKey}`).addEventListener('change', autoSave);
-  }
-
-  // Reads the current state of a pane's zone picker and returns a position object.
-  function collectPosition(paneKey) {
-    const picker = document.getElementById(`zone-picker-${paneKey}`);
-    if (!picker) return currentCfg[paneKey]?.position || {};
-    const activeBtn = picker.querySelector('.zone-btn.active');
-    const activeZone = activeBtn ? activeBtn.dataset.zone : 'right';
-    const fallbackPos = currentCfg[paneKey]?.position || {};
-    if (activeZone === 'floating') {
-      return {
-        mode:     'floating',
-        zone:     fallbackPos.zone     || 'right',
-        fill:     fallbackPos.fill     ?? true,
-        anchor:   document.getElementById(`zone-anchor-${paneKey}`)?.value   || 'top-right',
-        offset_x: parseInt(document.getElementById(`zone-offset-x-${paneKey}`)?.value ?? 0),
-        offset_y: parseInt(document.getElementById(`zone-offset-y-${paneKey}`)?.value ?? 0),
-      };
-    }
-    return {
-      mode:     'tiled',
-      zone:     activeZone,
-      fill:     document.getElementById(`zone-fill-${paneKey}`)?.checked ?? true,
-      anchor:   fallbackPos.anchor   || 'top-right',
-      offset_x: fallbackPos.offset_x ?? 0,
-      offset_y: fallbackPos.offset_y ?? 0,
-    };
-  }
-
-  function buildPlayerColourRows(playerColours) {
-    document.getElementById('player-colours-list').innerHTML = '';
-    for (const [name, colour] of Object.entries(playerColours)) {
-      addPlayerColourRow(name, colour);
-    }
-  }
-
-  function addPlayerColourRow(name = '', colour = '#ffffff') {
-    const list = document.getElementById('player-colours-list');
-    const row = document.createElement('div');
-    row.className = 'pc-row';
-
-    const nameInput = document.createElement('input');
-    nameInput.type = 'text';
-    nameInput.className = 'pc-name';
-    nameInput.placeholder = 'Display name';
-    nameInput.value = name;
-
-    const colourInput = document.createElement('input');
-    colourInput.type = 'color';
-    colourInput.className = 'pc-colour';
-    colourInput.value = colour;
-
-    const removeBtn = document.createElement('button');
-    removeBtn.type = 'button';
-    removeBtn.className = 'pc-remove';
-    removeBtn.textContent = '✕';
-
-    nameInput.addEventListener('blur', autoSave);
-    colourInput.addEventListener('change', autoSave);
-    removeBtn.addEventListener('click', () => { row.remove(); autoSave(); });
-
-    row.appendChild(nameInput);
-    row.appendChild(colourInput);
-    row.appendChild(removeBtn);
-    list.appendChild(row);
-  }
-
-  // Shared builder for both the leaderboard columns list and the run-history
-  // cells list. alwaysVisibleKey ('name' / 'level') matches the isName /
-  // isLevel special case that previously lived in each function separately.
-  function buildReorderableList(listId, items, alwaysVisibleKey, idPrefix, moveFnName) {
-    const list = document.getElementById(listId);
-    list.innerHTML = '';
-    for (const item of items) {
-      const row = document.createElement('div');
-      row.className = 'col-row';
-      row.dataset.key = item.key;
-      const isAlways = item.key === alwaysVisibleKey;
-      row.innerHTML = `
-        <button type="button" class="move-btn" onclick="${moveFnName}('${item.key}', -1)">&#9650;</button>
-        <button type="button" class="move-btn" onclick="${moveFnName}('${item.key}', +1)">&#9660;</button>
-        <input type="text" class="col-label-input" id="${idPrefix}_label_${item.key}">
-        <input type="checkbox" id="${idPrefix}_vis_${item.key}" ${item.visible ? 'checked' : ''} ${isAlways ? 'disabled' : ''}>
-        <span class="col-key">${item.key}</span>
-      `;
-      const labelInput = row.querySelector('.col-label-input');
-      labelInput.value = item.label;
-      labelInput.dataset.savedLabel = item.label;
-      labelInput.addEventListener('blur', function() {
-        if (this.value.trim() === '') this.value = this.dataset.savedLabel;
-        autoSave();
-      });
-      row.querySelector('input[type=checkbox]').addEventListener('change', autoSave);
-      list.appendChild(row);
-    }
-  }
-
-  function moveReorderableRow(listId, key, dir) {
-    const list = document.getElementById(listId);
-    const rows = [...list.querySelectorAll('.col-row')];
-    const idx = rows.findIndex(r => r.dataset.key === key);
-    const target = idx + dir;
-    if (target < 0 || target >= rows.length) return;
-    if (dir === -1) list.insertBefore(rows[idx], rows[target]);
-    else            list.insertBefore(rows[target], rows[idx]);
-    autoSave();
-  }
-  function moveColumn(key, dir)  { moveReorderableRow('columns-list', key, dir); }
-  function moveCellRow(key, dir) { moveReorderableRow('cells-list',   key, dir); }
-
-  function numVal(id, fallback) {
-    const v = parseFloat(document.getElementById(id).value);
-    return isNaN(v) ? fallback : v;
-  }
-
-  function collectPayload() {
-    const columns = [];
-    for (const row of document.querySelectorAll('#columns-list .col-row')) {
-      const key = row.dataset.key;
-      const orig = currentCfg.leaderboard.columns.find(c => c.key === key).label;
-      columns.push({
-        key,
-        label:   document.getElementById('col_label_' + key).value.trim() || orig,
-        visible: key === 'name' ? true : document.getElementById('col_vis_' + key).checked,
-      });
-    }
-    return {
-      global: {
-        font_family: document.getElementById('font_family').value,
-        sav_filename: document.getElementById('sav_filename').value.trim() || 'New tilts.sav',
-      },
-      leaderboard: {
-        enabled:              document.getElementById('lb_enabled').checked,
-        panel_width:          numVal('lb_panel_width',          currentCfg.leaderboard.panel_width),
-        panel_border_radius:  numVal('lb_panel_border_radius',  currentCfg.leaderboard.panel_border_radius),
-        opacity:              numVal('lb_opacity',              currentCfg.leaderboard.opacity),
-        font_size:            numVal('lb_font_size',            currentCfg.leaderboard.font_size),
-        font_colour:          document.getElementById('lb_font_colour').value,
-        header_text_transform: document.getElementById('hdr_text_transform').value,
-        header_font_weight:    document.getElementById('hdr_font_weight').value,
-        header_font_override: {
-          enabled:     document.getElementById('hdr_override_enabled').checked,
-          font_size:   numVal('hdr_font_size',   currentCfg.leaderboard.header_font_override.font_size),
-          font_colour: document.getElementById('hdr_font_colour').value,
-          bg_colour:   document.getElementById('hdr_bg_colour').value,
-          bg_opacity:  numVal('hdr_bg_opacity',  currentCfg.leaderboard.header_font_override.bg_opacity),
-        },
-        row_background_colour: document.getElementById('row_bg_colour').value,
-        row_background_alt: {
-          enabled: document.getElementById('row_bg_alt_enabled').checked,
-          opacity: numVal('row_bg_alt_opacity', currentCfg.leaderboard.row_background_alt.opacity),
-          colour:  document.getElementById('row_bg_alt_colour').value,
-        },
-        row_separator:      document.getElementById('row_separator').value,
-        show_session_label: document.getElementById('lb_show_session_label').checked,
-        row_height:         numVal('lb_row_height',       currentCfg.leaderboard.row_height),
-        cell_padding_v:     numVal('lb_cell_padding_v',   currentCfg.leaderboard.cell_padding_v),
-        cell_padding_h:     numVal('lb_cell_padding_h',   currentCfg.leaderboard.cell_padding_h),
-        columns,
-        position: collectPosition('leaderboard'),
-      },
-      level_history: {
-        enabled:          document.getElementById('lh_enabled').checked,
-        opacity:          numVal('lh_opacity', currentCfg.level_history.opacity),
-        font_size:        numVal('lh_font_size', currentCfg.level_history.font_size),
-        font_colour:      document.getElementById('lh_font_colour').value,
-        history_rows:     numVal('lh_history_rows', currentCfg.level_history.history_rows ?? 5),
-        recent_at_bottom: document.getElementById('lh_recent_at_bottom').checked,
-        show_total_row:   document.getElementById('lh_show_total_row').checked,
-        cells:            collectCells(),
-        position: collectPosition('level_history'),
-      },
-      player_colours: collectPlayerColours(),
-    };
-  }
-
-  function collectPlayerColours() {
-    const result = {};
-    for (const row of document.querySelectorAll('#player-colours-list .pc-row')) {
-      const name = row.querySelector('.pc-name').value.trim();
-      const colour = row.querySelector('.pc-colour').value;
-      if (name) result[name] = colour;
-    }
-    return result;
-  }
-
-  function collectCells() {
-    const cells = [];
-    for (const row of document.querySelectorAll('#cells-list .col-row')) {
-      const key = row.dataset.key;
-      const orig = (currentCfg.level_history.cells || []).find(c => c.key === key)?.label || key;
-      cells.push({
-        key,
-        label:   document.getElementById('cell_label_' + key).value.trim() || orig,
-        visible: key === 'level' ? true : document.getElementById('cell_vis_' + key).checked,
-      });
-    }
-    return cells;
-  }
-
-  async function autoSave() {
-    if (!currentCfg) return;
-    const msg = document.getElementById('msg');
-    try {
-      const resp = await fetch('/api/config', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(collectPayload()),
-      });
-      if (resp.ok) {
-        currentCfg = await resp.json();
-        msg.style.color = 'green';
-        msg.textContent = 'Saved';
-        setTimeout(() => { msg.textContent = ''; }, 2000);
-      } else {
-        msg.style.color = 'red';
-        msg.textContent = 'Save failed';
-      }
-    } catch (_) {
-      msg.style.color = 'red';
-      msg.textContent = 'Save failed (network error)';
-    }
-  }
-
-  [
-    'font_family', 'sav_filename',
-    'lb_enabled', 'lb_panel_width', 'lb_panel_border_radius', 'lb_opacity', 'lb_font_size', 'lb_font_colour',
-    'hdr_text_transform', 'hdr_font_weight',
-    'hdr_override_enabled', 'hdr_font_size', 'hdr_font_colour', 'hdr_bg_opacity', 'hdr_bg_colour',
-    'row_bg_colour', 'row_bg_alt_enabled', 'row_bg_alt_opacity', 'row_bg_alt_colour',
-    'row_separator', 'lb_show_session_label',
-    'lb_row_height', 'lb_cell_padding_v', 'lb_cell_padding_h',
-    'lh_enabled', 'lh_opacity', 'lh_font_size', 'lh_font_colour',
-    'lh_history_rows', 'lh_recent_at_bottom', 'lh_show_total_row',
-  ].forEach(id => document.getElementById(id).addEventListener('change', autoSave));
-
-  document.getElementById('reset-btn').addEventListener('click', async () => {
-    try {
-      const resp = await fetch('/api/config/defaults');
-      if (resp.ok) {
-        currentCfg = await resp.json();
-        populateForm(currentCfg);
-        autoSave();
-      }
-    } catch (_) {
-      // silently ignore — form stays as-is on network error
-    }
-  });
-
-  // Prevent enable checkboxes inside <summary> from toggling the <details>
-  ['lb_enabled', 'lh_enabled', 'hdr_override_enabled', 'row_bg_alt_enabled'].forEach(id => {
-    document.getElementById(id).addEventListener('click', e => e.stopPropagation());
-  });
-
-  function deriveAltColour(hex) {
-    if (!hex || hex.length < 7) return '#2a2a2a';
-    const r = Math.min(255, parseInt(hex.slice(1, 3), 16) + 16);
-    const g = Math.min(255, parseInt(hex.slice(3, 5), 16) + 16);
-    const b = Math.min(255, parseInt(hex.slice(5, 7), 16) + 16);
-    return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
-  }
-
-  document.getElementById('row_bg_alt_reset').addEventListener('click', () => {
-    const primary = document.getElementById('row_bg_colour').value;
-    document.getElementById('row_bg_alt_colour').value  = deriveAltColour(primary);
-    document.getElementById('row_bg_alt_opacity').value = document.getElementById('lb_opacity').value;
-    autoSave();
-  });
-
-  document.getElementById('add-player-colour-btn').addEventListener('click', () => {
-    addPlayerColourRow();
-  });
-
-  document.getElementById('font_filter').addEventListener('input', function() {
-    buildFontSelect(this.value);
-  });
-
-  loadConfig();
-</script>
 </body>
 </html>
