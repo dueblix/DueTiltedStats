@@ -19,6 +19,50 @@ The latest version of this guide is always available on GitHub alongside the sou
 
 ---
 
+## Using AI to build and iterate on your overlay
+
+This guide is designed to be pasted into an AI chat (Claude, ChatGPT, etc.) as
+context when asking for help building or modifying your overlay.
+
+**Recommended workflow:**
+
+1. Copy the built-in `overlay.html` or one of the templates below as your starting
+   point and rename it `overlay_custom.html`.
+2. Open a new AI chat. Paste in this entire guide (or at least the
+   `/api/state` reference section and the dummy payloads).
+3. Describe what you want: *"Make the leaderboard wider", "Add a panel showing
+   the current level number", "Change the font to Oswald from Google Fonts".*
+4. Paste the current state of your `overlay_custom.html` into the chat.
+5. **Preview**: AI tools like Claude.ai and ChatGPT will render the HTML
+   directly in the chat as you work. To see it with realistic data, ask the
+   AI to swap in one of the dummy payloads from the *Dummy payloads* section
+   below. For a live preview with your real game data, save the file next to
+   the `.exe` and open `http://127.0.0.1:5000/overlay` in a browser while
+   the app is running.
+6. Apply the AI's suggestions, drop the file next to the `.exe`, and reload the
+   OBS browser source.
+7. Iterate.
+
+**Useful prompts to get started:**
+
+- *"Using the /api/state schema above, add a banner that shows the last level's
+  survivors/total_players ratio."*
+- *"Redesign the leaderboard to show only the top 5 players with larger text and
+  no level history panel."*
+- *"Add a Google Font (Bebas Neue) to the overlay and apply it to the headers."*
+
+---
+
+## Maintenance note
+
+The dummy payloads in this file must be kept in sync with the `/api/state` response
+shape in `flask_overlay.py`. A maintenance comment is present in that file near the
+`/api/state` route as a reminder. If you add or remove fields from the response,
+update the field tables, dummy payloads, and any reference templates that reference
+those fields.
+
+---
+
 ## `/api/state` — the data endpoint
 
 Your overlay polls `http://127.0.0.1:5000/api/state` (default port 5000).
@@ -398,41 +442,3 @@ grid zone layout:
 </body>
 </html>
 ```
-
----
-
-## Using AI to build and iterate on your overlay
-
-This guide is designed to be pasted into an AI chat (Claude, ChatGPT, etc.) as
-context when asking for help building or modifying your overlay.
-
-**Recommended workflow:**
-
-1. Copy the built-in `overlay.html` or one of the templates above as your starting
-   point and rename it `overlay_custom.html`.
-2. Open a new AI chat. Paste in this entire guide (or at least the
-   `/api/state` reference section and the dummy payloads).
-3. Describe what you want: *"Make the leaderboard wider", "Add a panel showing
-   the current level number", "Change the font to Oswald from Google Fonts".*
-4. Paste the current state of your `overlay_custom.html` into the chat.
-5. Apply the AI's suggestions, drop the file next to the `.exe`, and reload the
-   OBS browser source.
-6. Iterate.
-
-**Useful prompts to get started:**
-
-- *"Using the /api/state schema above, add a banner that shows the last level's
-  survivors/total_players ratio."*
-- *"Redesign the leaderboard to show only the top 5 players with larger text and
-  no level history panel."*
-- *"Add a Google Font (Bebas Neue) to the overlay and apply it to the headers."*
-
----
-
-## Maintenance note
-
-The dummy payloads in this file must be kept in sync with the `/api/state` response
-shape in `flask_overlay.py`. A maintenance comment is present in that file near the
-`/api/state` route as a reminder. If you add or remove fields from the response,
-update the field tables, dummy payloads, and any reference templates that reference
-those fields.
