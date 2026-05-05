@@ -5,7 +5,6 @@ No file I/O, no Qt, no network. The watcher feeds parsed DataFrames in;
 this module calls db.py to persist results and manages run/session lifecycle.
 """
 
-import struct
 from datetime import datetime, timezone
 
 import pandas as pd
@@ -99,35 +98,6 @@ def parse_elapsed_time(elapsed_str) -> float | None:
     except (ValueError, AttributeError):
         return None
 
-
-# ---------------------------------------------------------------------------
-# Colour parser  (carried forward from main.py — reverse-engineered .sav)
-# ---------------------------------------------------------------------------
-
-def generate_colours(sav_path: str) -> dict:
-    """
-    Parse the binary .sav file to extract per-player RGBA colours.
-
-    Returns dict mapping display_name -> {"red", "green", "blue", "alpha"}
-    with float values in the range 0.0–1.0.
-    """
-    with open(sav_path, "rb") as f:
-        content = f.read()
-
-    colours = {}
-    parts = content.split(b"_DisplayName")
-    for chunk in parts[1:]:
-        name_length = chunk[26]
-        if name_length > chunk[21]:
-            name_length = (256 - name_length) * 2
-            name = chunk[30: 28 + name_length].decode("utf-16", "strict")
-        else:
-            name = chunk[30: 29 + name_length].decode("utf-8")
-        offset = name_length + 339
-        r, g, b, a = struct.unpack("<ffff", chunk[offset: 16 + offset])
-        colours[name] = {"red": r, "green": g, "blue": b, "alpha": a}
-
-    return colours
 
 
 # ---------------------------------------------------------------------------

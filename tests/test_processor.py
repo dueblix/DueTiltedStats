@@ -2,7 +2,6 @@
 Tests for processor.py — pure data logic, no DB, no real files on disk
 (except fixture files and tmp_path for encoding tests).
 """
-import struct
 import pytest
 from pathlib import Path
 
@@ -148,60 +147,3 @@ class TestExtractLevelData:
         assert data["elapsed_time"] == pytest.approx(45.123)
 
 
-# ---------------------------------------------------------------------------
-# generate_colours
-# ---------------------------------------------------------------------------
-
-def _make_sav_content(name: str, r: float, g: float, b: float, a: float) -> bytes:
-    """
-    Construct a minimal binary blob that generate_colours() can parse.
-
-    The function splits on b"_DisplayName" and reads each chunk as:
-      chunk[26]              → name_length
-      chunk[21]              → compared against name_length (>= → UTF-8 path)
-      chunk[30:29+name_len]  → name bytes (slice length = name_len - 1 chars)
-      chunk[name_len+339 : name_len+355] → 4 little-endian floats (r,g,b,a)
-
-    name_length = len(name) + 1 makes the slice land on exactly len(name) bytes.
-    """
-    name_bytes = name.encode("utf-8")
-    name_length = len(name_bytes) + 1  # +1 so slice [30: 29+name_length] = len(name) bytes
-    chunk = bytearray(name_length + 360)  # ensure enough room for RGBA at offset
-    chunk[21] = name_length              # name_length <= chunk[21] → UTF-8 path
-    chunk[26] = name_length
-    chunk[30:30 + len(name_bytes)] = name_bytes
-    offset = name_length + 339
-    struct.pack_into("<ffff", chunk, offset, r, g, b, a)
-    return b"prefix_DisplayName" + bytes(chunk)
-
-
-class TestGenerateColours:
-    def test_parses_single_player(self, tmp_path):
-        content = _make_sav_content("Alice", 1.0, 0.5, 0.25, 1.0)
-        sav = tmp_path / "test.sav"
-        sav.write_bytes(content)
-        colours = processor.generate_colours(str(sav))
-        assert "Alice" in colours
-        c = colours["Alice"]
-        assert c["red"]   == pytest.approx(1.0)
-        assert c["green"] == pytest.approx(0.5)
-        assert c["blue"]  == pytest.approx(0.25)
-        assert c["alpha"] == pytest.approx(1.0)
-
-    def test_no_display_names_returns_empty(self, tmp_path):
-        sav = tmp_path / "empty.sav"
-        sav.write_bytes(b"no display name markers here")
-        colours = processor.generate_colours(str(sav))
-        assert colours == {}
-
-    def test_multiple_players(self, tmp_path):
-        content = (
-            _make_sav_content("Alice", 1.0, 0.0, 0.0, 1.0) +
-            _make_sav_content("Bob",   0.0, 1.0, 0.0, 1.0)
-        )
-        sav = tmp_path / "multi.sav"
-        sav.write_bytes(content)
-        colours = processor.generate_colours(str(sav))
-        assert set(colours.keys()) == {"Alice", "Bob"}
-        assert colours["Alice"]["red"]   == pytest.approx(1.0)
-        assert colours["Bob"]["green"]   == pytest.approx(1.0)
